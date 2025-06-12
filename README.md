@@ -1,6 +1,3 @@
-# politicaindustrial
-app para simulações de impacto potencial de politicas industriais - caso fndit e descarbonização industrial
-
 # 🌿 Simulador de Política Pública de Fomento à Descarbonização (FNDIT)
 
 Este projeto oferece um aplicativo interativo construído com Streamlit para simular o impacto de diferentes estratégias de alocação de recursos do Fundo Nacional de Desenvolvimento Industrial e Tecnológico (FNDIT) em projetos de descarbonização. A ferramenta permite comparar cenários de crédito, subsídio de juros e subvenção total, incorporando a sensibilidade da demanda via elasticidade de mercado e outros indicadores-chave para auxiliar na decisão de política pública.
