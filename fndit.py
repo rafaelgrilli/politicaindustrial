@@ -69,6 +69,7 @@ with st.expander("ℹ️ Como interpretar os resultados"):
     - **VPL para o Tomador**: Valores mais altos indicam melhor custo-benefício para quem recebe o financiamento
     - **Custo por tonelada de CO2e**: Mede a eficiência do investimento em termos ambientais
     - **Alavancagem**: Mostra quanto capital privado é mobilizado por cada real público investido
+    - **Eficiência de Alocação**: Percentual que mostra o aproveitamento dos recursos disponíveis
     """)
 
 st.sidebar.header("Parâmetros do Projeto e do FNDIT")
@@ -134,30 +135,30 @@ if st.session_state.run_simulation:
     with col1:
         st.subheader("Cenário 1: Crédito com Juros Full")
         qtd_projetos_credito_full = montante_fndit // valor_projeto if valor_projeto > 0 else 0
-        st.metric("Projetos Financiáveis (Capacidade FNDIT)", f"{int(qtd_projetos_credito_full)}")
+        st.metric("Projetos Financiáveis (Capacidade FNDIT)", f"{int(qtd_projetos_credito_full):,}".replace(",", "."))
 
         parcela_full = calcular_parcela_price_cached(valor_projeto, taxa_juros_full_mensal, prazo_meses)
         custo_total_full = parcela_full * prazo_meses
         juros_total_full = custo_total_full - valor_projeto
         st.markdown(f"**Detalhes por Projeto (Juros Full):**")
-        st.markdown(f"- Parcela Mensal: R$ {parcela_full:,.2f}")
-        st.markdown(f"- Custo Total Financiamento: R$ {custo_total_full:,.2f}")
-        st.markdown(f"- Juros Totais Pagos: R$ {juros_total_full:,.2f}")
+        st.markdown(f"- Parcela Mensal: R$ {parcela_full:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+        st.markdown(f"- Custo Total Financiamento: R$ {custo_total_full:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+        st.markdown(f"- Juros Totais Pagos: R$ {juros_total_full:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
 
         # VPL para o Tomador (cenário sem subsídio - custo)
         if taxa_juros_full_mensal <= 1e-9 and taxa_desconto_tomador_mensal <= 1e-9:
              vpl_tomador_full = 0.0
-             st.markdown(f"- VPL para o Tomador (Juros Full): R$ {0.0:,.2f}")
+             st.markdown(f"- VPL para o Tomador (Juros Full): R$ {0.0:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
              st.markdown(f"*(VPL do financiamento. Se juros e taxa de desconto são 0%, VPL é 0)*")
         else:
             fluxos_tomador_full = [-parcela_full] * prazo_meses
             fluxos_tomador_full[0] += valor_projeto  # Recebe o valor no início
             vpl_tomador_full = calcular_vpl_cached(fluxos_tomador_full, taxa_desconto_tomador_mensal)
-            st.markdown(f"- VPL para o Tomador (Juros Full): R$ {vpl_tomador_full:,.2f}")
+            st.markdown(f"- VPL para o Tomador (Juros Full): R$ {vpl_tomador_full:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
             st.markdown(f"*(VPL inicial do financiamento. Representa o custo financeiro líquido para o tomador)*")
 
 
-    # --- Cenário 2: Subsídio de Juros (7,8% para 3%) ---
+    # --- Cenário 2: Subsídio de Juros (Full para Subsidiada) ---
     with col2:
         st.subheader("Cenário 2: Subsídio de Juros")
 
@@ -173,25 +174,25 @@ if st.session_state.run_simulation:
             qtd_projetos_capacidade_fndit = float('inf')
         else:
             qtd_projetos_capacidade_fndit = montante_fndit // subs_por_projeto
-            qtd_projetos_capacidade_fndit_display = f"{int(qtd_projetos_capacidade_fndit)}"
+            qtd_projetos_capacidade_fndit_display = f"{int(qtd_projetos_capacidade_fndit):,}".replace(",", ".")
             
         st.metric("Projetos Financiáveis (Capacidade FNDIT)", qtd_projetos_capacidade_fndit_display)
 
         st.markdown(f"**Detalhes por Projeto (Juros Subsidiados):**")
-        st.markdown(f"- Parcela Mensal: R$ {parcela_subsidio:,.2f}")
-        st.markdown(f"- Custo Total Financiamento: R$ {custo_total_subsidio:,.2f}")
-        st.markdown(f"- Juros Totais Pagos: R$ {juros_total_subsidio:,.2f}")
-        st.markdown(f"- **Subsídio FNDIT por Projeto: R$ {subs_por_projeto:,.2f}**")
+        st.markdown(f"- Parcela Mensal: R$ {parcela_subsidio:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+        st.markdown(f"- Custo Total Financiamento: R$ {custo_total_subsidio:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+        st.markdown(f"- Juros Totais Pagos: R$ {juros_total_subsidio:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+        st.markdown(f"- **Subsídio FNDIT por Projeto: R$ {subs_por_projeto:,.2f}**".replace(",", "X").replace(".", ",").replace("X", "."))
 
         # VPL para o Tomador (cenário subsidiado - benefício)
         if taxa_juros_subsidio_mensal <= 1e-9 and taxa_desconto_tomador_mensal <= 1e-9:
             vpl_tomador_subsidio = 0.0
-            st.markdown(f"- VPL para o Tomador (Juros Subsidiados): R$ {0.0:,.2f}")
+            st.markdown(f"- VPL para o Tomador (Juros Subsidiados): R$ {0.0:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
         else:
             fluxos_tomador_subsidio = [-parcela_subsidio] * prazo_meses
             fluxos_tomador_subsidio[0] += valor_projeto
             vpl_tomador_subsidio = calcular_vpl_cached(fluxos_tomador_subsidio, taxa_desconto_tomador_mensal)
-            st.markdown(f"- VPL para o Tomador (Juros Subsidiados): R$ {vpl_tomador_subsidio:,.2f}")
+            st.markdown(f"- VPL para o Tomador (Juros Subsidiados): R$ {vpl_tomador_subsidio:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
 
 
         st.markdown("---")
@@ -211,8 +212,8 @@ if st.session_state.run_simulation:
             qtd_projetos_demandados_elasticidade = demanda_base_full * (1 + aumento_demanda_percentual)
             aumento_demanda_percentual_display = f"{aumento_demanda_percentual:.2%}"
             
-        st.metric("Projetos Demandados (Elasticidade)", f"{int(qtd_projetos_demandados_elasticidade)}")
-        st.markdown(f"*(Assumindo {int(demanda_base_full)} projetos como demanda base a juros full)*")
+        st.metric("Projetos Demandados (Elasticidade)", f"{int(qtd_projetos_demandados_elasticidade):,}".replace(",", "."))
+        st.markdown(f"*(Assumindo {int(demanda_base_full):,} projetos como demanda base a juros full)*".replace(",", "."))
         st.markdown(f"*(Aumento de demanda de: {aumento_demanda_percentual_display})*")
 
         # Calculate efficiency metrics
@@ -220,18 +221,24 @@ if st.session_state.run_simulation:
             eficiencia_alocacao = min(qtd_projetos_demandados_elasticidade, qtd_projetos_capacidade_fndit) / qtd_projetos_credito_full
             st.metric("Eficiência de Alocação de Recursos", f"{eficiencia_alocacao:.2%}")
 
-        st.markdown(f"**Conclusão Elasticidade:** O FNDIT pode subsidiar até {qtd_projetos_capacidade_fndit_display} projetos, mas a demanda estimada é de {int(qtd_projetos_demandados_elasticidade)} projetos. Isso sugere que a demanda de mercado é o fator limitante neste cenário.")
+        # Nota sobre capacidade vs demanda
+        if qtd_projetos_capacidade_fndit != float('inf') and qtd_projetos_capacidade_fndit > qtd_projetos_demandados_elasticidade:
+            st.info("💡 **Nota importante:** A capacidade de financiamento é maior que a demanda estimada. Isso sugere que a demanda real pode ser maior que a prevista pela elasticidade caso haja esforços específicos como: campanhas de divulgação, prospecção ativa de empresas, facilitação de processos ou incentivos adicionais.")
+        elif qtd_projetos_capacidade_fndit != float('inf') and qtd_projetos_capacidade_fndit < qtd_projetos_demandados_elasticidade:
+            st.warning("⚠️ **Nota importante:** A demanda estimada é maior que a capacidade de financiamento. Isso sugere que os recursos podem ser insuficientes e pode ser necessário priorizar projetos ou buscar fontes adicionais de financiamento.")
+
+        st.markdown(f"**Conclusão Elasticidade:** O FNDIT pode subsidiar até {qtd_projetos_capacidade_fndit_display} projetos, mas a demanda estimada é de {int(qtd_projetos_demandados_elasticidade):,} projetos.".replace(",", "."))
 
 
     # --- Cenário 3: Subvenção Total do Projeto ---
     with col3:
         st.subheader("Cenário 3: Subvenção Total")
         qtd_projetos_subvencao = montante_fndit // valor_projeto if valor_projeto > 0 else 0
-        st.metric("Projetos Financiáveis (Capacidade FNDIT)", f"{int(qtd_projetos_subvencao)}")
+        st.metric("Projetos Financiáveis (Capacidade FNDIT)", f"{int(qtd_projetos_subvencao):,}".replace(",", "."))
         st.markdown(f"**Detalhes por Projeto (Subvenção Total):**")
-        st.markdown(f"- Valor da Subvenção: R$ {valor_projeto:,.2f}")
+        st.markdown(f"- Valor da Subvenção: R$ {valor_projeto:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
         st.markdown(f"*(Não há parcelas ou juros, pois o valor é doado)*")
-        st.markdown(f"- VPL para o Tomador (Subvenção): R$ {valor_projeto:,.2f}")  # VPL é o valor recebido
+        st.markdown(f"- VPL para o Tomador (Subvenção): R$ {valor_projeto:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))  # VPL é o valor recebido
 
 
     st.markdown("---")
@@ -244,7 +251,7 @@ if st.session_state.run_simulation:
     with col_ind1:
         st.subheader("Custo de Subsídio por Projeto (FNDIT)")
         if subs_por_projeto > 1e-9:  # Only show if there's a meaningful positive subsidy
-            st.metric("Subsídio de Juros", f"R$ {subs_por_projeto:,.2f}")
+            st.metric("Subsídio de Juros", f"R$ {subs_por_projeto:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
             st.markdown("*(Este é o valor que o FNDIT gasta por projeto para reduzir os juros para o tomador)*")
         else:
             st.info("Não há subsídio de juros ou é insignificante (taxa subsidiada igual ou maior que a full).")
@@ -255,19 +262,19 @@ if st.session_state.run_simulation:
         if reducao_co2e_por_projeto_ton > 0:
             if subs_por_projeto > 1e-9:
                 custo_ton_co2e_subsidio = subs_por_projeto / reducao_co2e_por_projeto_ton
-                st.metric("Custo Subsídio/ton CO2e (Juros Subsid.)", f"R$ {custo_ton_co2e_subsidio:,.2f}")
+                st.metric("Custo Subsídio/ton CO2e (Juros Subsid.)", f"R$ {custo_ton_co2e_subsidio:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
             else:
                 st.info("Custo Subsídio/ton CO2e não aplicável (sem subsídio ou subsídio zero).")
             
             custo_ton_co2e_subvencao = valor_projeto / reducao_co2e_por_projeto_ton
-            st.metric("Custo Subvenção/ton CO2e (Subvenção Total)", f"R$ {custo_ton_co2e_subvencao:,.2f}")
+            st.metric("Custo Subvenção/ton CO2e (Subvenção Total)", f"R$ {custo_ton_co2e_subvencao:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
             
             # Calculate total CO2 reduction potential
             if qtd_projetos_capacidade_fndit != float('inf'):
                 reducao_total_co2_subsidio = min(qtd_projetos_demandados_elasticidade, qtd_projetos_capacidade_fndit) * reducao_co2e_por_projeto_ton
-                st.metric("Redução Potencial de CO2e (Subsídio)", f"{reducao_total_co2_subsidio:,.0f} ton/ano")
+                st.metric("Redução Potencial de CO2e (Subsídio)", f"{reducao_total_co2_subsidio:,.0f} ton/ano".replace(",", "."))
             reducao_total_co2_subvencao = qtd_projetos_subvencao * reducao_co2e_por_projeto_ton
-            st.metric("Redução Potencial de CO2e (Subvenção)", f"{reducao_total_co2_subvencao:,.0f} ton/ano")
+            st.metric("Redução Potencial de CO2e (Subvenção)", f"{reducao_total_co2_subvencao:,.0f} ton/ano".replace(",", "."))
         else:
             st.warning("Redução de CO2e por projeto deve ser maior que zero para calcular o custo por tonelada.")
 
@@ -277,8 +284,8 @@ if st.session_state.run_simulation:
         st.subheader("Alavancagem de Capital Privado")
         if subs_por_projeto > 1e-9:
             alavancagem_subs = valor_projeto / subs_por_projeto
-            st.metric("Alavancagem (Subsídio de Juros)", f"{alavancagem_subs:,.2f}x")
-            st.markdown(f"*(Cada R$1 do FNDIT em subsídio atrai R${alavancagem_subs:,.2f} de capital privado para o projeto)*")
+            st.metric("Alavancagem (Subsídio de Juros)", f"{alavancagem_subs:,.2f}x".replace(",", "X").replace(".", ",").replace("X", "."))
+            st.markdown(f"*(Cada R$ 1 do FNDIT em subsídio atrai R$ {alavancagem_subs:,.2f} de capital privado para o projeto)*".replace(",", "X").replace(".", ",").replace("X", "."))
         else:
             st.info("Não aplicável ou calculável para Alavancagem com Subsídio de Juros (subsídio zero ou negativo).")
         
@@ -314,7 +321,7 @@ if st.session_state.run_simulation:
         if yval == float('inf'):
             ax.text(bar.get_x() + bar.get_width()/2, 0, "Inf.", ha='center', va='bottom', fontsize=10, color='red')
         else:
-            ax.text(bar.get_x() + bar.get_width()/2, yval + 0.5, f'{int(yval)}', ha='center', va='bottom', fontsize=10)
+            ax.text(bar.get_x() + bar.get_width()/2, yval + 0.5, f'{int(yval):,}'.replace(",", "."), ha='center', va='bottom', fontsize=10)
 
     plt.tight_layout()
     st.pyplot(fig)
@@ -331,27 +338,37 @@ if st.session_state.run_simulation:
     }
     df_comparison = pd.DataFrame(comparison_data)
 
+    # Format values for Brazilian display
+    df_display = df_comparison.copy()
+    for col in ['Custo Total por Projeto', 'VPL para Tomador', 'Custo FNDIT por Projeto']:
+        df_display[col] = df_display[col].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if not pd.isna(x) else "R$ 0,00")
+
     # Display as a table
-    st.dataframe(df_comparison.style.format({
-        'Custo Total por Projeto': 'R$ {:.2f}',
-        'VPL para Tomador': 'R$ {:.2f}',
-        'Custo FNDIT por Projeto': 'R$ {:.2f}'
-    }))
+    st.dataframe(df_display)
 
     # Add a cost-benefit chart
     fig2, ax2 = plt.subplots(1, 2, figsize=(12, 5))
     
     # Plot 1: Cost comparison
     df_comparison.plot(x='Cenário', y=['Custo Total por Projeto', 'Custo FNDIT por Projeto'], 
-                      kind='bar', ax=ax2[0], title='Comparação de Custos')
+                      kind='bar', ax=ax2[0], title='Comparação de Custos por Projeto')
     ax2[0].tick_params(axis='x', rotation=45)
     ax2[0].set_ylabel("Valor (R$)")
+    ax2[0].legend(['Custo Total', 'Custo FNDIT'])
+    
+    # Format y-axis to Brazilian format
+    y_labels = [f"R$ {x:,.0f}".replace(",", "X").replace(".", ",").replace("X", ".") for x in ax2[0].get_yticks()]
+    ax2[0].set_yticklabels(y_labels)
     
     # Plot 2: NPV comparison
     df_comparison.plot(x='Cenário', y='VPL para Tomador', 
                       kind='bar', ax=ax2[1], title='VPL para o Tomador', color='green')
     ax2[1].tick_params(axis='x', rotation=45)
     ax2[1].set_ylabel("VPL (R$)")
+    
+    # Format y-axis to Brazilian format
+    y_labels = [f"R$ {x:,.0f}".replace(",", "X").replace(".", ",").replace("X", ".") for x in ax2[1].get_yticks()]
+    ax2[1].set_yticklabels(y_labels)
     
     plt.tight_layout()
     st.pyplot(fig2)
@@ -364,6 +381,7 @@ if st.session_state.run_simulation:
     * **Barreiras não-financeiras:** Além dos juros, quais outras barreiras (conhecimento técnico, burocracia, acesso à tecnologia) podem estar limitando a demanda por projetos de descarbonização? O FNDIT pode atuar nesses pontos.
     * **Monitoramento e Avaliação:** Implementar um sistema robusto para monitorar o impacto real dos projetos financiados em termos de descarbonização, geração de valor e retorno financeiro.
     * **Estruturas Híbridas:** Considere misturar as estratégias. Por exemplo, uma pequena subvenção inicial (seed money) combinada com crédito subsidiado para o restante do projeto.
+    * **Estratégias de Demanda:** Quando a capacidade for maior que a demanda estimada, considere implementar campanhas de divulgação, prospecção ativa de empresas e facilitação de processos para aumentar a demanda real.
     """)
 else:
     st.info("Ajuste os parâmetros na barra lateral e clique em 'Simular' para ver os resultados.")
