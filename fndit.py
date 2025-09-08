@@ -79,37 +79,37 @@ st.sidebar.header("⚙️ Parâmetros da Simulação")
 st.sidebar.subheader("💰 Parâmetros Financeiros")
 valor_projeto = st.sidebar.slider("1. Valor do Projeto de Descarbonização (R$)", 
                                   min_value=1_000_000, max_value=100_000_000,
-                                  value=30_000_000, step=1_000_000)
+                                  value=30_000_000, step=1_000_000, key="valor_projeto")
 st.sidebar.info("Este é o custo total de um projeto de descarbonização, como a instalação de painéis solares ou uma frota de veículos elétricos.")
 
 taxa_juros_full_anual = st.sidebar.slider("2. Taxa de Juros Full (a.a. %) - Mercado", 
                                           min_value=0.0, max_value=15.0, 
-                                          value=7.8, step=0.1) / 100
+                                          value=7.8, step=0.1, key="taxa_juros_full_anual") / 100
 st.sidebar.info("A taxa de juros que o tomador de crédito pagaria em uma condição de mercado 'normal', sem subsídios do FNDIT.")
 
 montante_fndit = st.sidebar.slider("3. Montante no FNDIT para Subsídios/Crédito (R$)", 
                                    min_value=10_000_000, max_value=1_000_000_000, 
-                                   value=200_000_000, step=10_000_000)
+                                   value=200_000_000, step=10_000_000, key="montante_fndit")
 st.sidebar.info("O total de recursos disponíveis no FNDIT para apoiar os projetos. Este montante pode ser usado para crédito ou subsídio.")
 
 prazo_anos = st.sidebar.slider("4. Prazo para Amortização (anos)", 
                                min_value=1, max_value=20,
-                               value=5, step=1)
+                               value=5, step=1, key="prazo_anos")
 st.sidebar.info("O número de anos para o tomador de crédito pagar o financiamento.")
 
 taxa_juros_subsidio_anual = st.sidebar.slider("5. Taxa de Juros Subsidiada Alvo (a.a. %)", 
                                                min_value=0.0, max_value=max(0.1, taxa_juros_full_anual * 100),
-                                               value=min(3.0, taxa_juros_full_anual * 100), step=0.1) / 100
+                                               value=min(3.0, taxa_juros_full_anual * 100), step=0.1, key="taxa_juros_subsidio_anual") / 100
 st.sidebar.info("A taxa de juros reduzida que o FNDIT oferece aos projetos. A diferença entre esta taxa e a taxa 'full' de mercado é o subsídio.")
 
 elasticidade_demanda = st.sidebar.slider("6. Elasticidade da Demanda por Crédito de Descarbonização", 
                                          min_value=-5.0, max_value=-0.1,
-                                         value=-1.5, step=0.1)
+                                         value=-1.5, step=0.1, key="elasticidade_demanda")
 st.sidebar.info("Mede a sensibilidade da demanda por crédito em relação às mudanças na taxa de juros. Uma elasticidade de -1.5, por exemplo, indica que uma redução de 1% na taxa de juros resulta em um aumento de 1.5% na demanda por projetos.")
 
 taxa_desconto_tomador_anual = st.sidebar.slider("7. Taxa de Desconto para VPL (Tomador) a.a. (%)",
                                                 min_value=0.0, max_value=25.0,
-                                                value=12.0, step=0.5) / 100
+                                                value=12.0, step=0.5, key="taxa_desconto_tomador_anual") / 100
 st.sidebar.info("Representa a taxa de retorno mínima aceitável do tomador de crédito. É usada para calcular o valor presente de futuros fluxos de caixa (VPL).")
 
 # Validações dos parâmetros
@@ -131,6 +131,7 @@ abordagem_co2 = st.sidebar.radio(
 
 fator_co2 = 0
 metodologia_info = ""
+custo_real_tecnologia = None
 
 if abordagem_co2 == "Setorial (Recomendado)":
     fatores_setor = {
@@ -147,16 +148,17 @@ if abordagem_co2 == "Setorial (Recomendado)":
 
 elif abordagem_co2 == "Por Tecnologia Específica":
     fatores_tecnologia = {
-        "Solar Fotovoltaica": {"fator": 200, "calculo": "1.600 MWh/ano × 0,8 tCO2e/MWh × 25 anos / R$ 4 milhões", "premissas": "Fator de capacidade 20% (Nordeste: 25%, Sul: 18%)", "fontes": "ABSolar, ONS (2023)"},
-        "Eólica": {"fator": 190, "calculo": "3.000 MWh/ano × 0,8 tCO2e/MWh × 25 anos / R$ 6 milhões", "premissas": "Fator de capacidade 35% (Nordeste: 45%, Sul: 32%)", "fontes": "ABEEólica, ONS (2023)"},
-        "Biogás/Biometano": {"fator": 130, "calculo": "Metano evitado (GWP 28) + substituição de diesel", "premissas": "Potencial de aquecimento global do metano (IPCC AR6)", "fontes": "EPE, MCTI (2023)"},
-        "Veículos Elétricos": {"fator": 160, "calculo": "30.000 km/ano × 0,15 kWh/km × 0,8 tCO2e/MWh × 10 anos", "premissas": "Vida útil 10 anos, rodagem média brasileira (ANTT 2023)", "fontes": "ANTP, MCTI (2024)"},
-        "Captura e Armazenamento de Carbono": {"fator": 110, "calculo": "Custos elevados vs. potencial tecnológico atual", "premissas": "Tecnologia ainda em desenvolvimento no Brasil", "fontes": "Estudos internacionais adaptados (2024)"},
-        "Hidrogênio Verde": {"fator": 140, "calculo": "Tecnologia emergente com custos elevados", "premissas": "Baseado em projetos piloto internacionais", "fontes": "IEA, EPE (2023)"},
-        "Outras": {"fator": 70, "calculo": "Média ponderada de tecnologias não especificadas", "premissas": "Estimativa conservadora", "fontes": "Várias (2023-2024)"}
+        "Solar Fotovoltaica": {"fator": 200, "custo_real": 120, "calculo": "1.600 MWh/ano × 0,8 tCO2e/MWh × 25 anos / R$ 4 milhões", "premissas": "Fator de capacidade 20% (Nordeste: 25%, Sul: 18%)", "fontes": "ABSolar, ONS (2023)"},
+        "Eólica": {"fator": 190, "custo_real": 130, "calculo": "3.000 MWh/ano × 0,8 tCO2e/MWh × 25 anos / R$ 6 milhões", "premissas": "Fator de capacidade 35% (Nordeste: 45%, Sul: 32%)", "fontes": "ABEEólica, ONS (2023)"},
+        "Biogás/Biometano": {"fator": 130, "custo_real": 90, "calculo": "Metano evitado (GWP 28) + substituição de diesel", "premissas": "Potencial de aquecimento global do metano (IPCC AR6)", "fontes": "EPE, MCTI (2023)"},
+        "Veículos Elétricos": {"fator": 160, "custo_real": 150, "calculo": "30.000 km/ano × 0,15 kWh/km × 0,8 tCO2e/MWh × 10 anos", "premissas": "Vida útil 10 anos, rodagem média brasileira (ANTT 2023)", "fontes": "ANTP, MCTI (2024)"},
+        "Captura e Armazenamento de Carbono": {"fator": 110, "custo_real": 450, "calculo": "Custos elevados vs. potencial tecnológico atual", "premissas": "Tecnologia ainda em desenvolvimento no Brasil", "fontes": "Estudos internacionais adaptados (2024)"},
+        "Hidrogênio Verde": {"fator": 140, "custo_real": 550, "calculo": "Tecnologia emergente com custos elevados", "premissas": "Baseado em projetos piloto internacionais", "fontes": "IEA, EPE (2023)"},
+        "Outras": {"fator": 70, "custo_real": 200, "calculo": "Média ponderada de tecnologias não especificadas", "premissas": "Estimativa conservadora", "fontes": "Várias (2023-2024)"}
     }
     tecnologia_name = st.sidebar.selectbox("2. Tecnologia de Descarbonização", list(fatores_tecnologia.keys()), key="tecnologia_selector")
     fator_co2 = fatores_tecnologia[tecnologia_name]["fator"]
+    custo_real_tecnologia = fatores_tecnologia[tecnologia_name]["custo_real"]
     metodologia_info = f"**Cálculo:** {fatores_tecnologia[tecnologia_name]['calculo']}\n**Premissas:** {fatores_tecnologia[tecnologia_name]['premissas']}\n**Fontes:** {fatores_tecnologia[tecnologia_name]['fontes']}"
 
 elif abordagem_co2 == "Meta Customizada":
@@ -177,15 +179,9 @@ regiao = st.sidebar.selectbox(
 
 # --- Cálculos Financeiros ---
 prazo_meses = prazo_anos * 12
-taxa_juros_full_anual = st.session_state.taxa_juros_full_anual if 'taxa_juros_full_anual' in st.session_state else 0.078
-taxa_juros_subsidio_anual = st.session_state.taxa_juros_subsidio_anual if 'taxa_juros_subsidio_anual' in st.session_state else 0.03
-prazo_anos = st.session_state.prazo_anos if 'prazo_anos' in st.session_state else 5
-valor_projeto = st.session_state.valor_projeto if 'valor_projeto' in st.session_state else 30_000_000
-
-prazo_meses = prazo_anos * 12
 taxa_juros_full_mensal = (1 + taxa_juros_full_anual)**(1/12) - 1 if taxa_juros_full_anual > 0 else 0.0
 taxa_juros_subsidio_mensal = (1 + taxa_juros_subsidio_anual)**(1/12) - 1 if taxa_juros_subsidio_anual > 0 else 0.0
-taxa_desconto_tomador_mensal = (1 + st.session_state.taxa_desconto_tomador_anual)**(1/12) - 1 if 'taxa_desconto_tomador_anual' in st.session_state else 0.01
+taxa_desconto_tomador_mensal = (1 + taxa_desconto_tomador_anual)**(1/12) - 1 if taxa_desconto_tomador_anual > 0 else 0.0
 
 st.header("Resultados da Simulação Financeira")
 
@@ -328,7 +324,22 @@ if abordagem_co2 != "Nenhuma" and fator_co2 > 0:
     st.header("🔥 Impacto de Descarbonização Estimado")
     
     with st.expander("📋 Metodologia e Fontes"):
-        st.write(metodologia_info)
+        if abordagem_co2 == "Setorial (Recomendado)":
+            st.markdown(f"""
+            **Base Técnica:** {fatores_setor[setor_name]['base']}
+            **Fonte:** {fatores_setor[setor_name]['fonte']}
+            **Ano de Referência:** {fatores_setor[setor_name]['ano']}
+            """)
+        elif abordagem_co2 == "Por Tecnologia Específica":
+            st.markdown(f"""
+            **Cálculo:** {fatores_tecnologia[tecnologia_name]['calculo']}
+            **Premissas:** {fatores_tecnologia[tecnologia_name]['premissas']}
+            **Fontes:** {fatores_tecnologia[tecnologia_name]['fontes']}
+            """)
+        elif abordagem_co2 == "Meta Customizada":
+            st.markdown(f"""
+            **Atenção:** Fator customizado - recomenda-se validação técnica com especialista setorial.
+            """)
         if regiao != "Nacional":
             st.info(f"**Fator regional aplicado:** {fatores_regionais[regiao]:.2f}x para {regiao}")
     
@@ -339,30 +350,39 @@ if abordagem_co2 != "Nenhuma" and fator_co2 > 0:
         st.metric("Redução Total no Período", f"{reducao_total_periodo:,.0f} t")
     with col3_co2:
         if subs_por_projeto > 0 and reducao_total_periodo > 0:
-            custo_por_tonelada = subs_por_projeto / reducao_total_periodo
+            custo_por_tonelada_projeto = subs_por_projeto / reducao_total_periodo
             tipo_custo = "Subsídio"
         else:
-            custo_por_tonelada = valor_projeto / reducao_total_periodo if reducao_total_periodo > 0 else 0
+            custo_por_tonelada_projeto = valor_projeto / reducao_total_periodo if reducao_total_periodo > 0 else 0
             tipo_custo = "Investimento"
-        st.metric(f"Custo {tipo_custo}/Tonelada", f"R$ {custo_por_tonelada:,.0f}")
+        st.metric(f"Custo {tipo_custo}/Tonelada", f"R$ {custo_por_tonelada_projeto:,.0f}")
     with col4_co2:
         carros_equivalentes = co2_evitado_anual / 4
         st.metric("Equiv. Carros Retirados", f"{carros_equivalentes:,.0f}")
     
     st.subheader("💰 Análise de Custo-Efetividade")
-    referencias_mercado = {"Mercado Voluntário (Mín.)": 50, "Mercado Voluntário (Máx.)": 180, "Regulado (Mín.)": 80, "Regulado (Máx.)": 250, "CBIOs (RenovaBio)": 85, "Seu Projeto": custo_por_tonelada}
-    df_comparacao = pd.DataFrame([{"Categoria": k, "Custo (R$/tCO2e)": v, "Tipo": "Mercado" if k != "Seu Projeto" else "Projeto"} for k, v in referencias_mercado.items()])
-    fig = px.bar(df_comparacao, x="Categoria", y="Custo (R$/tCO2e)", color="Tipo", title="Comparação com Referências do Mercado Brasileiro de Carbono (2024)", color_discrete_map={"Mercado": "lightblue", "Projeto": "darkgreen"})
+    referencias_mercado = {"Mercado Voluntário (Mín.)": 50, "Mercado Voluntário (Máx.)": 180, "Regulado (Mín.)": 80, "Regulado (Máx.)": 250, "CBIOs (RenovaBio)": 85}
+    df_comparacao_lista = [{"Categoria": k, "Custo (R$/tCO2e)": v, "Tipo": "Mercado"} for k, v in referencias_mercado.items()]
+    
+    if abordagem_co2 == "Por Tecnologia Específica" and tecnologia_name:
+        df_comparacao_lista.append({"Categoria": "Custo Real da Tecnologia", "Custo (R$/tCO2e)": custo_real_tecnologia, "Tipo": "Tecnologia"})
+    
+    df_comparacao_lista.append({"Categoria": "Custo do Seu Projeto (FNDIT)", "Custo (R$/tCO2e)": custo_por_tonelada_projeto, "Tipo": "Projeto"})
+    
+    df_comparacao = pd.DataFrame(df_comparacao_lista)
+    
+    fig = px.bar(df_comparacao, x="Categoria", y="Custo (R$/tCO2e)", color="Tipo", title="Comparação com Referências de Mercado e Custo Real de Tecnologias",
+                 color_discrete_map={"Mercado": "lightblue", "Tecnologia": "orange", "Projeto": "darkgreen"})
     st.plotly_chart(fig, use_container_width=True)
 
-    if custo_por_tonelada <= 150:
-        st.success(f"✅ **Custo-efetivo**: Abaixo ou igual ao mercado voluntário (R$ {custo_por_tonelada:,.0f}/tCO2e).")
-    elif custo_por_tonelada <= 200:
-        st.info(f"ℹ️ **Competitivo**: Dentro do range regulado (R$ {custo_por_tonelada:,.0f}/tCO2e).")
-    elif custo_por_tonelada <= 350:
-        st.warning(f"⚠️ **Acima do mercado**: Justifique os co-benefícios (R$ {custo_por_tonelada:,.0f}/tCO2e).")
+    if custo_por_tonelada_projeto <= 150:
+        st.success(f"✅ **Custo-efetivo**: Abaixo ou igual ao mercado voluntário (R$ {custo_por_tonelada_projeto:,.0f}/tCO2e).")
+    elif custo_por_tonelada_projeto <= 200:
+        st.info(f"ℹ️ **Competitivo**: Dentro do range regulado (R$ {custo_por_tonelada_projeto:,.0f}/tCO2e).")
+    elif custo_por_tonelada_projeto <= 350:
+        st.warning(f"⚠️ **Acima do mercado**: Justifique os co-benefícios (R$ {custo_por_tonelada_projeto:,.0f}/tCO2e).")
     else:
-        st.error(f"❌ **Muito alto**: Revise a parametrização (R$ {custo_por_tonelada:,.0f}/tCO2e).")
+        st.error(f"❌ **Muito alto**: Revise a parametrização (R$ {custo_por_tonelada_projeto:,.0f}/tCO2e).")
 
     st.subheader("🎯 Impacto Agregado da Política")
     if qtd_projetos_capacidade_fndit != float('inf'):
