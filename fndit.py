@@ -110,8 +110,7 @@ if montante_fndit < valor_projeto:
 if st.sidebar.button("Simular"):
     st.session_state.run_simulation = True
 else:
-    # CORREÇÃO APLICADA AQUI:
-    if 'run_simulation' not in st.session_state:  # Correção: st.session_state em vez de st.sidebar
+    if 'run_simulation' not in st.session_state:
         st.session_state.run_simulation = False
 
 if st.session_state.run_simulation:
@@ -224,6 +223,7 @@ if st.session_state.run_simulation:
         elif qtd_projetos_capacidade_fndit != float('inf') and qtd_projetos_capacidade_fndit < qtd_projetos_demandados_elasticidade:
             st.warning("⚠️ **Nota importante:** A demanda estimada é maior que a capacidade de financiamento. Isso sugere que os recursos podem ser insuficientes e pode ser necessário priorizar projetos ou buscar fontes adicionais de financiamento.")
 
+        # CORREÇÃO APLICADA AQUI: vírgula em vez de ponto
         st.markdown(f"**Conclusão Elasticidade:** O FNDIT pode subsidiar até {qtd_projetos_capacidade_fndit_display} projetos, mas a demanda estimada é de {int(qtd_projetos_demandados_elasticidade):,} projetos.".replace(",", "."))
 
 
@@ -276,6 +276,7 @@ if st.session_state.run_simulation:
         if subs_por_projeto > 1e-9:
             alavancagem_subs = valor_projeto / subs_por_projeto
             st.metric("Alavancagem (Subsídio de Juros)", f"{alavancagem_subs:,.2f}x".replace(",", "X").replace(".", ",").replace("X", "."))
+            # CORREÇÃO APLICADA AQUI: texto formatado corretamente
             st.markdown(f"*(Cada R$ 1 do FNDIT em subsídio atrai R$ {alavancagem_subs:,.2f} de capital privado para o projeto)*".replace(",", "X").replace(".", ",").replace("X", "."))
         else:
             st.info("Não aplicável ou calculável para Alavancagem com Subsídio de Juros (subsídio zero ou negativo).")
