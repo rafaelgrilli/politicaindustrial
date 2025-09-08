@@ -110,7 +110,8 @@ if montante_fndit < valor_projeto:
 if st.sidebar.button("Simular"):
     st.session_state.run_simulation = True
 else:
-    if 'run_simulation' not in st.sidebar:
+    # CORREÇÃO APLICADA AQUI:
+    if 'run_simulation' not in st.session_state:  # Correção: st.session_state em vez de st.sidebar
         st.session_state.run_simulation = False
 
 if st.session_state.run_simulation:
