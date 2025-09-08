@@ -67,7 +67,6 @@ with st.expander("ℹ️ Como interpretar os resultados"):
     st.markdown("""
     **Como interpretar os resultados:**
     - **VPL para o Tomador**: Valores mais altos indicam melhor custo-benefício para quem recebe o financiamento
-    - **Custo por tonelada de CO2e**: Mede a eficiência do investimento em termos ambientais
     - **Alavancagem**: Mostra quanto capital privado é mobilizado por cada real público investido
     - **Eficiência de Alocação**: Percentual que mostra o aproveitamento dos recursos disponíveis
     """)
@@ -93,9 +92,6 @@ taxa_juros_subsidio_anual = st.sidebar.slider("Taxa de Juros Subsidiada Alvo (a.
 elasticidade_demanda = st.sidebar.slider("Elasticidade da Demanda por Crédito de Descarbonização", 
                                          min_value=-5.0, max_value=-0.1,
                                          value=-1.5, step=0.1)
-reducao_co2e_por_projeto_ton = st.sidebar.number_input("Redução de CO2e por projeto (toneladas/ano)", 
-                                                       min_value=0, max_value=500000,
-                                                       value=10000, step=1000)
 taxa_desconto_tomador_anual = st.sidebar.slider("Taxa de Desconto para VPL (Tomador) a.a. (%)",
                                                 min_value=0.0, max_value=25.0,
                                                 value=12.0, step=0.5) / 100
@@ -114,7 +110,7 @@ if montante_fndit < valor_projeto:
 if st.sidebar.button("Simular"):
     st.session_state.run_simulation = True
 else:
-    if 'run_simulation' not in st.session_state:
+    if 'run_simulation' not in st.sidebar:
         st.session_state.run_simulation = False
 
 if st.session_state.run_simulation:
@@ -256,28 +252,22 @@ if st.session_state.run_simulation:
         else:
             st.info("Não há subsídio de juros ou é insignificante (taxa subsidiada igual ou maior que a full).")
 
-    # Custo por Tonelada de CO2e Evitada (Estimado)
+    # Nova métrica: Eficiência de Alocação de Recursos
     with col_ind2:
-        st.subheader("Custo por Tonelada de CO2e Evitada")
-        if reducao_co2e_por_projeto_ton > 0:
-            if subs_por_projeto > 1e-9:
-                custo_ton_co2e_subsidio = subs_por_projeto / reducao_co2e_por_projeto_ton
-                st.metric("Custo Subsídio/ton CO2e (Juros Subsid.)", f"R$ {custo_ton_co2e_subsidio:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-            else:
-                st.info("Custo Subsídio/ton CO2e não aplicável (sem subsídio ou subsídio zero).")
+        st.subheader("Eficiência de Alocação")
+        
+        if qtd_projetos_capacidade_fndit != float('inf'):
+            # Projetos efetivamente financiados considerando demanda
+            projetos_efetivos = min(qtd_projetos_demandados_elasticidade, qtd_projetos_capacidade_fndit)
+            st.metric("Projetos Efetivamente Financiáveis", f"{int(projetos_efetivos):,}".replace(",", "."))
             
-            custo_ton_co2e_subvencao = valor_projeto / reducao_co2e_por_projeto_ton
-            st.metric("Custo Subvenção/ton CO2e (Subvenção Total)", f"R$ {custo_ton_co2e_subvencao:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-            
-            # Calculate total CO2 reduction potential
-            if qtd_projetos_capacidade_fndit != float('inf'):
-                reducao_total_co2_subsidio = min(qtd_projetos_demandados_elasticidade, qtd_projetos_capacidade_fndit) * reducao_co2e_por_projeto_ton
-                st.metric("Redução Potencial de CO2e (Subsídio)", f"{reducao_total_co2_subsidio:,.0f} ton/ano".replace(",", "."))
-            reducao_total_co2_subvencao = qtd_projetos_subvencao * reducao_co2e_por_projeto_ton
-            st.metric("Redução Potencial de CO2e (Subvenção)", f"{reducao_total_co2_subvencao:,.0f} ton/ano".replace(",", "."))
+            # Taxa de utilização dos recursos
+            if qtd_projetos_capacidade_fndit > 0:
+                utilizacao_recursos = projetos_efetivos / qtd_projetos_capacidade_fndit
+                st.metric("Utilização dos Recursos Disponíveis", f"{utilizacao_recursos:.2%}")
         else:
-            st.warning("Redução de CO2e por projeto deve ser maior que zero para calcular o custo por tonelada.")
-
+            st.metric("Projetos Efetivamente Financiáveis", f"{int(qtd_projetos_demandados_elasticidade):,}".replace(",", "."))
+            st.info("Capacidade de financiamento é ilimitada com o subsídio atual")
 
     # Alavancagem de Capital Privado (para o cenário de subsídio de juros)
     with col_ind3:
