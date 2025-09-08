@@ -70,6 +70,7 @@ with st.expander("ℹ️ Como interpretar os resultados"):
     - **Alavancagem**: Mostra quanto capital privado é mobilizado por cada real público investido.
     - **Eficiência de Alocação**: Percentual que mostra o aproveitamento dos recursos disponíveis.
     - **Custo-Efetividade**: Compara o custo do projeto (ou do subsídio) com o preço de mercado da tonelada de CO2e evitada.
+    - **Eficiência Econômica**: Mostra o percentual do custo de descarbonização que é coberto pelo subsídio do FNDIT.
     """)
 
 # --- Parâmetros de Entrada na barra lateral ---
@@ -192,6 +193,7 @@ with col1:
     st.subheader("Cenário 1: Crédito com Juros Full")
     qtd_projetos_credito_full = montante_fndit // valor_projeto if valor_projeto > 0 else 0
     st.metric("Projetos Financiáveis (Capacidade FNDIT)", f"{int(qtd_projetos_credito_full):,}".replace(",", "."))
+    st.info("Mostra quantos projetos de R$ 30 milhões o FNDIT conseguiria financiar se não subsidiasse juros e usasse todo o seu montante para crédito.")
     parcela_full = calcular_parcela_price_cached(valor_projeto, taxa_juros_full_mensal, prazo_meses)
     custo_total_full = parcela_full * prazo_meses
     juros_total_full = custo_total_full - valor_projeto
@@ -219,6 +221,7 @@ with col2:
         qtd_projetos_capacidade_fndit_display = f"{int(qtd_projetos_capacidade_fndit):,}".replace(",", ".")
         
     st.metric("Projetos Financiáveis (Capacidade FNDIT)", qtd_projetos_capacidade_fndit_display)
+    st.info("Com o subsídio de juros, o FNDIT gasta menos por projeto, podendo financiar mais iniciativas com o mesmo montante.")
     st.markdown(f"**Detalhes por Projeto (Juros Subsidiados):**")
     st.markdown(f"- Parcela Mensal: R$ {parcela_subsidio:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
     st.markdown(f"- Juros Totais Pagos: R$ {juros_total_subsidio:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
@@ -234,6 +237,7 @@ with col3:
     st.subheader("Cenário 3: Subvenção Total")
     qtd_projetos_subvencao = montante_fndit // valor_projeto if valor_projeto > 0 else 0
     st.metric("Projetos Financiáveis (Capacidade FNDIT)", f"{int(qtd_projetos_subvencao):,}".replace(",", "."))
+    st.info("Neste modelo, o FNDIT cobre 100% do custo do projeto, permitindo que o tomador de crédito não tenha despesa alguma. Isso, no entanto, limita a quantidade de projetos financiáveis.")
     st.markdown(f"**Detalhes por Projeto (Subvenção Total):**")
     st.markdown(f"- Valor da Subvenção: R$ {valor_projeto:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
     st.markdown(f"*(Não há parcelas ou juros, pois o valor é doado)*")
@@ -246,13 +250,14 @@ st.header("Análise Comparativa e Indicadores de Impacto")
 col_ind1, col_ind2, col_ind3 = st.columns(3)
 with col_ind1:
     st.subheader("Custo de Subsídio por Projeto (FNDIT)")
+    st.info("Este é o valor que o FNDIT gasta por projeto para reduzir os juros para o tomador, calculado como a diferença entre as parcelas a juros 'full' e as parcelas subsidiadas, ao longo do prazo do financiamento.")
     if subs_por_projeto > 1e-9:
         st.metric("Subsídio de Juros", f"R$ {subs_por_projeto:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-        st.markdown("*(Este é o valor que o FNDIT gasta por projeto para reduzir os juros para o tomador)*")
     else:
         st.info("Não há subsídio de juros ou é insignificante.")
 with col_ind2:
     st.subheader("Eficiência de Alocação")
+    st.info("Compara a quantidade de projetos que o FNDIT pode financiar com sua capacidade de crédito versus a quantidade de projetos que seriam demandados no mercado, considerando a elasticidade. Um valor menor que 100% significa que a demanda não preencheria a capacidade de financiamento.")
     if taxa_juros_full_anual <= 0:
         st.warning("Não é possível calcular variação percentual na taxa de juros quando a taxa full é 0%.")
         qtd_projetos_demandados_elasticidade = 0
@@ -274,10 +279,10 @@ with col_ind2:
 
 with col_ind3:
     st.subheader("Alavancagem de Capital Privado")
+    st.info("Mede o quanto cada real de capital público (subsídio do FNDIT) atrai de capital privado para o projeto. Uma alavancagem de 2x, por exemplo, significa que para cada R$ 1 público, R$ 2 privados são mobilizados.")
     if subs_por_projeto > 1e-9:
         alavancagem_subs = valor_projeto / subs_por_projeto
         st.metric("Alavancagem (Subsídio de Juros)", f"{alavancagem_subs:,.2f}x".replace(",", "X").replace(".", ",").replace("X", "."))
-        st.markdown(f"*(Cada R$ 1 do FNDIT em subsídio atrai R$ {alavancagem_subs:,.2f} de capital privado)*".replace(",", "X").replace(".", ",").replace("X", "."))
     else:
         st.info("Não aplicável ou calculável.")
     st.metric("Alavancagem (Subvenção Total)", "Não aplicável (1:1)")
@@ -303,6 +308,7 @@ st.pyplot(fig)
 
 # --- Análise Financeira por Cenário ---
 st.header("Análise Financeira por Cenário")
+st.info("Este quadro compara os três cenários de financiamento, mostrando o impacto sobre o tomador (VPL) e o custo para o FNDIT. É uma forma de analisar qual estratégia é mais vantajosa para cada tipo de projeto.")
 comparison_data = {'Cenário': ['Crédito Full', 'Subsídio Juros', 'Subvenção Total'],
                     'Custo Total por Projeto': [custo_total_full, custo_total_subsidio, valor_projeto],
                     'VPL para Tomador': [vpl_tomador_full, vpl_tomador_subsidio, valor_projeto],
@@ -324,17 +330,21 @@ if abordagem_co2 != "Nenhuma" and fator_co2 > 0:
     st.header("🔥 Impacto de Descarbonização Estimado")
     
     with st.expander("📋 Metodologia e Fontes"):
+        st.markdown("**Aviso:** As estimativas de CO2 evitado são simplificadas. A redução real dependerá da especificidade de cada projeto, da metodologia de medição, e de fatores como a idade dos equipamentos e a matriz energética regional. Esta simulação é uma ferramenta de comparação e planejamento, não um cálculo exato de inventário de GEE.")
+        st.markdown("---")
         if abordagem_co2 == "Setorial (Recomendado)":
             st.markdown(f"""
-            **Base Técnica:** {fatores_setor[setor_name]['base']}
-            **Fonte:** {fatores_setor[setor_name]['fonte']}
-            **Ano de Referência:** {fatores_setor[setor_name]['ano']}
+            **Base Técnica:**
+            - **Cálculo:** {fatores_setor[setor_name]['base']}
+            - **Fontes:** {fatores_setor[setor_name]['fonte']}
+            - **Ano de Referência:** {fatores_setor[setor_name]['ano']}
             """)
         elif abordagem_co2 == "Por Tecnologia Específica":
             st.markdown(f"""
-            **Cálculo:** {fatores_tecnologia[tecnologia_name]['calculo']}
-            **Premissas:** {fatores_tecnologia[tecnologia_name]['premissas']}
-            **Fontes:** {fatores_tecnologia[tecnologia_name]['fontes']}
+            **Base Técnica:**
+            - **Cálculo:** {fatores_tecnologia[tecnologia_name]['calculo']}
+            - **Premissas:** {fatores_tecnologia[tecnologia_name]['premissas']}
+            - **Fontes:** {fatores_tecnologia[tecnologia_name]['fontes']}
             """)
         elif abordagem_co2 == "Meta Customizada":
             st.markdown(f"""
@@ -361,6 +371,7 @@ if abordagem_co2 != "Nenhuma" and fator_co2 > 0:
         st.metric("Equiv. Carros Retirados", f"{carros_equivalentes:,.0f}")
     
     st.subheader("💰 Análise de Custo-Efetividade")
+    st.info("Este gráfico compara o custo de descarbonização do seu projeto (custo do subsídio dividido pelo carbono evitado) com as referências de mercado de carbono. Ele ajuda a avaliar se o investimento do FNDIT é competitivo.")
     referencias_mercado = {"Mercado Voluntário (Mín.)": 50, "Mercado Voluntário (Máx.)": 180, "Regulado (Mín.)": 80, "Regulado (Máx.)": 250, "CBIOs (RenovaBio)": 85}
     df_comparacao_lista = [{"Categoria": k, "Custo (R$/tCO2e)": v, "Tipo": "Mercado"} for k, v in referencias_mercado.items()]
     
@@ -383,6 +394,14 @@ if abordagem_co2 != "Nenhuma" and fator_co2 > 0:
         st.warning(f"⚠️ **Acima do mercado**: Justifique os co-benefícios (R$ {custo_por_tonelada_projeto:,.0f}/tCO2e).")
     else:
         st.error(f"❌ **Muito alto**: Revise a parametrização (R$ {custo_por_tonelada_projeto:,.0f}/tCO2e).")
+    
+    st.subheader("🔬 Eficiência Econômica do Subsídio")
+    st.info("Este indicador mostra o percentual do custo real de descarbonização que é coberto pelo subsídio do FNDIT. Quanto mais próximo de 100%, mais o FNDIT está fechando a lacuna financeira do projeto.")
+    if subs_por_projeto > 0 and custo_real_tecnologia is not None:
+        eficiencia_economica = custo_por_tonelada_projeto / custo_real_tecnologia
+        st.metric("Eficiência Econômica", f"{eficiencia_economica:.2%}")
+    else:
+        st.info("Não aplicável para este cenário de financiamento ou tecnologia.")
 
     st.subheader("🎯 Impacto Agregado da Política")
     if qtd_projetos_capacidade_fndit != float('inf'):
@@ -395,6 +414,12 @@ if abordagem_co2 != "Nenhuma" and fator_co2 > 0:
             st.metric("Redução Total da Política", f"{reducao_total_politica * prazo_anos:,.0f} t")
         with col_impacto3:
             st.metric("Carros Retirados da Política", f"{reducao_total_politica / 4:,.0f}")
+        st.markdown("---")
+        st.warning(f"""
+        **⚠️ Nota importante sobre a Demanda:**
+        O FNDIT tem capacidade para financiar **{int(qtd_projetos_capacidade_fndit):,}** projetos, mas a elasticidade da demanda sugere que apenas **{int(qtd_projetos_demandados_elasticidade):,}** projetos seriam efetivamente demandados com a taxa de juros atual.
+        Isso significa que, sem outras ações de fomento e articulação com o setor privado, pode haver uma baixa adesão. Para maximizar o impacto, o FNDIT precisa trabalhar a demanda de forma focada, identificando e apoiando empresas com maior potencial de descarbonização.
+        """)
     else:
         st.info("O impacto agregado não pode ser calculado, pois a capacidade de financiamento do FNDIT é ilimitada para o subsídio atual.")
 else:
