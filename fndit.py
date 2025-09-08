@@ -315,8 +315,48 @@ st.dataframe(df_display)
 st.markdown("---")
 fatores_regionais = {"Nacional": 1.0, "Norte": 1.1, "Nordeste": 1.2, "Centro-Oeste": 0.9, "Sudeste": 1.0, "Sul": 0.95}
 
-if abordagem_co2 != "Nenhuma":
+fator_co2 = 0
+metodologia_info = ""
+
+if abordagem_co2 == "Setorial (Recomendado)":
+    fatores_setor = {
+        "Energia Renovável": {"fator": 180, "base": "Emissões evitadas de termelétricas (0,8 tCO2e/MWh) × fator de capacidade", "fonte": "EPE (2023), MCTI (2023)", "ano": 2023},
+        "Eficiência Energética": {"fator": 120, "base": "Redução de consumo em indústrias energy-intensive", "fonte": "Estudos setoriais cimento/aço (2023)", "ano": 2023},
+        "Transporte Sustentável": {"fator": 150, "base": "Eletrificação substituindo diesel (2,68 kgCO2/litro)", "fonte": "MCTI - Fatores de Emissão (2024)", "ano": 2024},
+        "Agricultura de Baixo Carbono": {"fator": 90, "base": "ILPF, recuperação de pastagens, fixação biológica de N₂", "fonte": "Embrapa, Programa ABC+ (2023)", "ano": 2023},
+        "Manejo de Resíduos": {"fator": 80, "base": "Metano evitado (GWP 28× CO₂) + energia renovável", "fonte": "IPCC, metodologias CDM (2023)", "ano": 2023},
+        "Outros": {"fator": 60, "base": "Setores diversos com menor potencial específico", "fonte": "Estimativa conservadora (2024)", "ano": 2024}
+    }
+    setor_name = st.sidebar.selectbox("2. Setor do Projeto", list(fatores_setor.keys()), key="setor_selector")
+    fator_co2 = fatores_setor[setor_name]["fator"]
+    metodologia_info = f"**Base técnica:** {fatores_setor[setor_name]['base']}\n**Fonte:** {fatores_setor[setor_name]['fonte']}\n**Ano de referência:** {fatores_setor[setor_name]['ano']}"
+
+elif abordagem_co2 == "Por Tecnologia Específica":
+    fatores_tecnologia = {
+        "Solar Fotovoltaica": {"fator": 200, "calculo": "1.600 MWh/ano × 0,8 tCO2e/MWh × 25 anos / R$ 4 milhões", "premissas": "Fator de capacidade 20% (Nordeste: 25%, Sul: 18%)", "fontes": "ABSolar, ONS (2023)"},
+        "Eólica": {"fator": 190, "calculo": "3.000 MWh/ano × 0,8 tCO2e/MWh × 25 anos / R$ 6 milhões", "premissas": "Fator de capacidade 35% (Nordeste: 45%, Sul: 32%)", "fontes": "ABEEólica, ONS (2023)"},
+        "Biogás/Biometano": {"fator": 130, "calculo": "Metano evitado (GWP 28) + substituição de diesel", "premissas": "Potencial de aquecimento global do metano (IPCC AR6)", "fontes": "EPE, MCTI (2023)"},
+        "Veículos Elétricos": {"fator": 160, "calculo": "30.000 km/ano × 0,15 kWh/km × 0,8 tCO2e/MWh × 10 anos", "premissas": "Vida útil 10 anos, rodagem média brasileira (ANTT 2023)", "fontes": "ANTP, MCTI (2024)"},
+        "Captura e Armazenamento de Carbono": {"fator": 110, "calculo": "Custos elevados vs. potencial tecnológico atual", "premissas": "Tecnologia ainda em desenvolvimento no Brasil", "fontes": "Estudos internacionais adaptados (2024)"},
+        "Hidrogênio Verde": {"fator": 140, "calculo": "Tecnologia emergente com custos elevados", "premissas": "Baseado em projetos piloto internacionais", "fontes": "IEA, EPE (2023)"},
+        "Outras": {"fator": 70, "calculo": "Média ponderada de tecnologias não especificadas", "premissas": "Estimativa conservadora", "fontes": "Várias (2023-2024)"}
+    }
+    tecnologia_name = st.sidebar.selectbox("2. Tecnologia de Descarbonização", list(fatores_tecnologia.keys()), key="tecnologia_selector")
+    fator_co2 = fatores_tecnologia[tecnologia_name]["fator"]
+    metodologia_info = f"**Cálculo:** {fatores_tecnologia[tecnologia_name]['calculo']}\n**Premissas:** {fatores_tecnologia[tecnologia_name]['premissas']}\n**Fontes:** {fatores_tecnologia[tecnologia_name]['fontes']}"
+
+elif abordagem_co2 == "Meta Customizada":
+    fator_co2 = st.sidebar.slider(
+        "2. Fator de Redução (tCO2e/milhão R$/ano)",
+        min_value=10, max_value=500, value=100, step=10,
+        key="fator_custom_slider",
+        help="Range baseado em estudos setoriais brasileiros (2023-2024)."
+    )
+    metodologia_info = "**Atenção:** Fator customizado - recomenda-se validação técnica com especialista setorial."
+
+if abordagem_co2 != "Nenhuma" and fator_co2 > 0:
     co2_evitado_anual = (valor_projeto / 1_000_000) * fator_co2 * fatores_regionais[regiao]
+    reducao_total_periodo = co2_evitado_anual * prazo_anos
 
     st.header("🔥 Impacto de Descarbonização Estimado")
     
@@ -329,14 +369,13 @@ if abordagem_co2 != "Nenhuma":
     with col1_co2:
         st.metric("Redução Anual de CO2e", f"{co2_evitado_anual:,.0f} t/ano")
     with col2_co2:
-        reducao_total = co2_evitado_anual * prazo_anos
-        st.metric("Redução Total no Período", f"{reducao_total:,.0f} t")
+        st.metric("Redução Total no Período", f"{reducao_total_periodo:,.0f} t")
     with col3_co2:
-        if subs_por_projeto > 0:
-            custo_por_tonelada = subs_por_projeto / co2_evitado_anual
+        if subs_por_projeto > 0 and reducao_total_periodo > 0:
+            custo_por_tonelada = subs_por_projeto / reducao_total_periodo
             tipo_custo = "Subsídio"
         else:
-            custo_por_tonelada = valor_projeto / co2_evitado_anual
+            custo_por_tonelada = valor_projeto / reducao_total_periodo if reducao_total_periodo > 0 else 0
             tipo_custo = "Investimento"
         st.metric(f"Custo {tipo_custo}/Tonelada", f"R$ {custo_por_tonelada:,.0f}")
     with col4_co2:
