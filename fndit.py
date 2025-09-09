@@ -328,30 +328,7 @@ if abordagem_co2 != "Nenhuma" and fator_co2 > 0:
     reducao_total_periodo = co2_evitado_anual * prazo_anos
 
     st.header("🔥 Impacto de Descarbonização Estimado")
-    
-    with st.expander("📋 Metodologia e Fontes"):
-        st.markdown("**Aviso:** As estimativas de CO2 evitado são simplificadas. A redução real dependerá da especificidade de cada projeto, da metodologia de medição, e de fatores como a idade dos equipamentos e a matriz energética regional. Esta simulação é uma ferramenta de comparação e planejamento, não um cálculo exato de inventário de GEE.")
-        st.markdown("---")
-        if abordagem_co2 == "Setorial (Recomendado)":
-            st.markdown(f"""
-            **Base Técnica:**
-            - **Cálculo:** {fatores_setor[setor_name]['base']}
-            - **Fontes:** {fatores_setor[setor_name]['fonte']}
-            - **Ano de Referência:** {fatores_setor[setor_name]['ano']}
-            """)
-        elif abordagem_co2 == "Por Tecnologia Específica":
-            st.markdown(f"""
-            **Base Técnica:**
-            - **Cálculo:** {fatores_tecnologia[tecnologia_name]['calculo']}
-            - **Premissas:** {fatores_tecnologia[tecnologia_name]['premissas']}
-            - **Fontes:** {fatores_tecnologia[tecnologia_name]['fontes']}
-            """)
-        elif abordagem_co2 == "Meta Customizada":
-            st.markdown(f"""
-            **Atenção:** Fator customizado - recomenda-se validação técnica com especialista setorial.
-            """)
-        if regiao != "Nacional":
-            st.info(f"**Fator regional aplicado:** {fatores_regionais[regiao]:.2f}x para {regiao}")
+    st.markdown("---")
     
     col1_co2, col2_co2, col3_co2, col4_co2 = st.columns(4)
     with col1_co2:
@@ -404,6 +381,7 @@ if abordagem_co2 != "Nenhuma" and fator_co2 > 0:
         st.info("Não aplicável para este cenário de financiamento ou tecnologia.")
 
     st.subheader("🎯 Impacto Agregado da Política")
+    st.info("Esta seção mostra o impacto total da política de fomento à descarbonização, considerando a capacidade financeira do FNDIT e a demanda estimada de projetos. Ela traduz os resultados financeiros e de carbono em métricas mais amplas e de fácil compreensão.")
     if qtd_projetos_capacidade_fndit != float('inf'):
         projetos_efetivos = min(qtd_projetos_demandados_elasticidade, qtd_projetos_capacidade_fndit)
         reducao_total_politica = co2_evitado_anual * projetos_efetivos
