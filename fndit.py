@@ -125,7 +125,7 @@ if montante_fndit < valor_projeto:
 st.sidebar.subheader("🌱 Parâmetros de Descarbonização")
 abordagem_co2 = st.sidebar.radio(
     "1. Metodologia para Estimativa de CO2 Evitado",
-    ["Nenhuma", "Setorial (Recomendado)", "Tecnologia de Descarbonização Industrial", "Meta Customizada"],
+    ["Nenhuma", "Tecnologia de Descarbonização Industrial", "Meta Customizada"],
     key="abordagem_co2_radio",
     help="Baseado em metodologias do MCTI, EPE e estudos setoriais brasileiros."
 )
@@ -134,20 +134,7 @@ fator_co2 = 0
 metodologia_info = ""
 custo_real_tecnologia = None
 
-if abordagem_co2 == "Setorial (Recomendado)":
-    fatores_setor = {
-        "Energia Renovável": {"fator": 180, "base": "Emissões evitadas de termelétricas (0,8 tCO2e/MWh) × fator de capacidade", "fonte": "EPE (2023), MCTI (2023)", "ano": 2023},
-        "Eficiência Energética": {"fator": 120, "base": "Redução de consumo em indústrias energy-intensive", "fonte": "Estudos setoriais cimento/aço (2023)", "ano": 2023},
-        "Transporte Sustentável": {"fator": 150, "base": "Eletrificação substituindo diesel (2,68 kgCO2/litro)", "fonte": "MCTI - Fatores de Emissão (2024)", "ano": 2024},
-        "Agricultura de Baixo Carbono": {"fator": 90, "base": "ILPF, recuperação de pastagens, fixação biológica de N₂", "fonte": "Embrapa, Programa ABC+ (2023)", "ano": 2023},
-        "Manejo de Resíduos": {"fator": 80, "base": "Metano evitado (GWP 28× CO₂) + energia renovável", "fonte": "IPCC, metodologias CDM (2023)", "ano": 2023},
-        "Outros": {"fator": 60, "base": "Setores diversos com menor potencial específico", "fonte": "Estimativa conservadora (2024)", "ano": 2024}
-    }
-    setor_name = st.sidebar.selectbox("2. Setor do Projeto", list(fatores_setor.keys()), key="setor_selector")
-    fator_co2 = fatores_setor[setor_name]["fator"]
-    metodologia_info = f"**Base técnica:** {fatores_setor[setor_name]['base']}\n**Fonte:** {fatores_setor[setor_name]['fonte']}\n**Ano de referência:** {fatores_setor[setor_name]['ano']}"
-
-elif abordagem_co2 == "Tecnologia de Descarbonização Industrial":
+if abordagem_co2 == "Tecnologia de Descarbonização Industrial":
     fatores_tecnologia = {
         "Eficiência Energética Industrial": {"fator": 150, "custo_real": 120, "calculo": "Redução de consumo de energia em processos industriais (ex: motores, caldeiras)", "premissas": "Otimização de equipamentos, sistemas de controle, e isolamento térmico.", "fontes": "IEA, EPE, MME (2023)"},
         "Eletrificação de Processos": {"fator": 180, "custo_real": 200, "calculo": "Substituição de combustíveis fósseis (gás, carvão) por eletricidade renovável", "premissas": "Considera a eletrificação de fornos, caldeiras e aquecimento industrial.", "fontes": "IEA, MCTI, estudos setoriais (2024)"},
