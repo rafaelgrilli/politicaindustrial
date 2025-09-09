@@ -4,6 +4,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import math
 import plotly.express as px
+import plotly.graph_objects as go
 
 # --- Funções de Cálculo ---
 
@@ -45,6 +46,42 @@ def calcular_vpl(fluxos_caixa, taxa_desconto_mensal):
             discount_factor = 1 / ((1 + taxa_desconto_mensal)**t)
         vpl += fluxo * discount_factor
     return vpl
+
+@st.cache_data
+def gerar_plano_amortizacao(valor_financiamento, taxa_juros_mensal, num_parcelas):
+    """Gera um plano de amortização no sistema Price."""
+    if num_parcelas <= 0 or valor_financiamento <= 0:
+        return pd.DataFrame()
+    if taxa_juros_mensal <= 1e-9:
+        parcela = valor_financiamento / num_parcelas
+        dados = {
+            'Mês': range(1, num_parcelas + 1),
+            'Juros': [0.0] * num_parcelas,
+            'Amortização': [parcela] * num_parcelas,
+            'Saldo Devedor': [valor_financiamento - parcela * mes for mes in range(1, num_parcelas + 1)]
+        }
+        return pd.DataFrame(dados)
+
+    parcela = calcular_parcela_price(valor_financiamento, taxa_juros_mensal, num_parcelas)
+    saldo_devedor = valor_financiamento
+    meses, juros, amortizacoes, saldos = [], [], [], []
+
+    for mes in range(1, num_parcelas + 1):
+        juros_mes = saldo_devedor * taxa_juros_mensal
+        amortizacao_mes = parcela - juros_mes
+        saldo_devedor -= amortizacao_mes
+        
+        meses.append(mes)
+        juros.append(juros_mes)
+        amortizacoes.append(amortizacao_mes)
+        saldos.append(max(0, saldo_devedor)) # Garantir que o saldo não seja negativo
+
+    return pd.DataFrame({
+        'Mês': meses,
+        'Juros': juros,
+        'Amortização': amortizacoes,
+        'Saldo Devedor': saldos
+    })
 
 # --- Configurações da Página Streamlit ---
 st.set_page_config(layout="wide", page_title="Simulador de Fomento à Descarbonização (FNDIT)")
@@ -163,148 +200,156 @@ if 'run_simulation' not in st.session_state:
 if st.sidebar.button("Simular"):
     st.session_state.run_simulation = True
 
+# Botão para gerar relatório em PDF (com instruções)
+st.sidebar.markdown("---")
+if st.sidebar.button("📄 Gerar Relatório PDF"):
+    st.warning("Para salvar a página como PDF, utilize a função de impressão do seu navegador (Ctrl+P ou Cmd+P).")
+
 # O resto do código só será executado após o clique no botão
 if st.session_state.run_simulation:
     # --- Cálculos Financeiros ---
     prazo_meses = prazo_anos * 12
+    taxa_juros_full_anual_display = f"{taxa_juros_full_anual * 100:.2f}%"
+    taxa_juros_subsidio_anual_display = f"{taxa_juros_subsidio_anual * 100:.2f}%"
     taxa_juros_full_mensal = (1 + taxa_juros_full_anual)**(1/12) - 1 if taxa_juros_full_anual > 0 else 0.0
     taxa_juros_subsidio_mensal = (1 + taxa_juros_subsidio_anual)**(1/12) - 1 if taxa_juros_subsidio_anual > 0 else 0.0
     taxa_desconto_tomador_mensal = (1 + taxa_desconto_tomador_anual)**(1/12) - 1 if taxa_desconto_tomador_anual > 0 else 0.0
 
-    st.header("Resultados da Simulação Financeira")
+    # Cálculos dos Cenários
+    parcela_full = calcular_parcela_price_cached(valor_projeto, taxa_juros_full_mensal, prazo_meses)
+    juros_total_full = parcela_full * prazo_meses - valor_projeto
+    fluxos_tomador_full = [-parcela_full] * prazo_meses
+    fluxos_tomador_full[0] += valor_projeto
+    vpl_tomador_full = calcular_vpl_cached(fluxos_tomador_full, taxa_desconto_tomador_mensal)
+    
+    parcela_subsidio = calcular_parcela_price_cached(valor_projeto, taxa_juros_subsidio_mensal, prazo_meses)
+    subs_por_projeto = (parcela_full - parcela_subsidio) * prazo_meses
+    fluxos_tomador_subsidio = [-parcela_subsidio] * prazo_meses
+    fluxos_tomador_subsidio[0] += valor_projeto
+    vpl_tomador_subsidio = calcular_vpl_cached(fluxos_tomador_subsidio, taxa_desconto_tomador_mensal)
+    
+    qtd_projetos_credito_full = montante_fndit // valor_projeto if valor_projeto > 0 else 0
+    if subs_por_projeto <= 1e-9 or subs_por_projeto == float('inf'):
+        qtd_projetos_capacidade_fndit = float('inf')
+    else:
+        qtd_projetos_capacidade_fndit = montante_fndit // subs_por_projeto
+    
+    qtd_projetos_subvencao = montante_fndit // valor_projeto if valor_projeto > 0 else 0
+    
+    # Cálculos de Impacto da Demanda
+    if taxa_juros_full_anual <= 0:
+        qtd_projetos_demandados_elasticidade = 0
+    else:
+        variacao_juros_percentual = (taxa_juros_subsidio_anual - taxa_juros_full_anual) / taxa_juros_full_anual
+        demanda_base_full = qtd_projetos_credito_full
+        aumento_demanda_percentual = elasticidade_demanda * variacao_juros_percentual
+        qtd_projetos_demandados_elasticidade = demanda_base_full * (1 + aumento_demanda_percentual)
+        
+    if qtd_projetos_capacidade_fndit != float('inf'):
+        projetos_efetivos = min(qtd_projetos_demandados_elasticidade, qtd_projetos_capacidade_fndit)
+    else:
+        projetos_efetivos = qtd_projetos_demandados_elasticidade
 
+    # --- Dashboard Executivo ---
+    st.header("Sumário Executivo da Simulação")
+    col_vpl, col_alavancagem, col_custo, col_projetos = st.columns(4)
+
+    with col_vpl:
+        st.subheader("Benefício para o Tomador")
+        st.metric("VPL do Projeto (com Subsídio)", f"R$ {vpl_tomador_subsidio:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+        st.info(f"O VPL do mesmo projeto sem subsídio seria de R$ {vpl_tomador_full:,.2f}.".replace(",", "X").replace(".", ",").replace("X", "."))
+
+    with col_alavancagem:
+        st.subheader("Alavancagem de Capital")
+        if subs_por_projeto > 1e-9:
+            alavancagem_subs = valor_projeto / subs_por_projeto
+            st.metric("Alavancagem", f"{alavancagem_subs:,.2f}x".replace(",", "X").replace(".", ",").replace("X", "."))
+        else:
+            st.metric("Alavancagem", "Não aplicável")
+        st.info("Mede o capital privado mobilizado por cada real público do FNDIT.")
+    
+    with col_custo:
+        st.subheader("Custo de Descarbonização")
+        if subs_por_projeto > 0 and (valor_projeto / 1_000_000) * fator_co2 > 0:
+            custo_por_tonelada = subs_por_projeto / (((valor_projeto / 1_000_000) * fator_co2) * prazo_anos)
+            st.metric("Custo/tCO2e (FNDIT)", f"R$ {custo_por_tonelada:,.0f}")
+        else:
+            st.metric("Custo/tCO2e (FNDIT)", "N/A")
+        st.info("Compara o custo do subsídio do FNDIT com o carbono evitado.")
+
+    with col_projetos:
+        st.subheader("Alcance da Política")
+        st.metric("Projetos Efetivamente Financiados", f"{int(projetos_efetivos):,}".replace(",", "."))
+        st.info(f"Este número é o mínimo entre a capacidade do FNDIT ({int(qtd_projetos_capacidade_fndit):,}) e a demanda do mercado ({int(qtd_projetos_demandados_elasticidade):,}).".replace(",", ".").replace("X", "."))
+
+    st.markdown("---")
+
+    # --- Análise Comparativa e Indicadores de Impacto ---
+    st.header("Análise Detalhada por Cenário")
     col1, col2, col3 = st.columns(3)
 
     # Cenário 1: Crédito com Juros Full
     with col1:
         st.subheader("Cenário 1: Crédito com Juros Full")
-        qtd_projetos_credito_full = montante_fndit // valor_projeto if valor_projeto > 0 else 0
         st.metric("Projetos Financiáveis (Capacidade FNDIT)", f"{int(qtd_projetos_credito_full):,}".replace(",", "."))
-        st.info("Mostra quantos projetos de R$ 30 milhões o FNDIT conseguiria financiar se não subsidiasse juros e usasse todo o seu montante para crédito.")
-        parcela_full = calcular_parcela_price_cached(valor_projeto, taxa_juros_full_mensal, prazo_meses)
-        custo_total_full = parcela_full * prazo_meses
-        juros_total_full = custo_total_full - valor_projeto
-        st.markdown(f"**Detalhes por Projeto (Juros Full):**")
+        st.info(f"Taxa de Juros: {taxa_juros_full_anual_display}")
+        st.markdown(f"**Detalhes por Projeto:**")
         st.markdown(f"- Parcela Mensal: R$ {parcela_full:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
         st.markdown(f"- Juros Totais Pagos: R$ {juros_total_full:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-        fluxos_tomador_full = [-parcela_full] * prazo_meses
-        fluxos_tomador_full[0] += valor_projeto
-        vpl_tomador_full = calcular_vpl_cached(fluxos_tomador_full, taxa_desconto_tomador_mensal)
         st.markdown(f"- VPL para o Tomador: R$ {vpl_tomador_full:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
 
     # Cenário 2: Subsídio de Juros
     with col2:
         st.subheader("Cenário 2: Subsídio de Juros")
-        parcela_subsidio = calcular_parcela_price_cached(valor_projeto, taxa_juros_subsidio_mensal, prazo_meses)
-        custo_total_subsidio = parcela_subsidio * prazo_meses
-        juros_total_subsidio = custo_total_subsidio - valor_projeto
-        subs_por_projeto = (parcela_full - parcela_subsidio) * prazo_meses
-        
-        if subs_por_projeto <= 1e-9 or subs_por_projeto == float('inf'):
-            qtd_projetos_capacidade_fndit_display = "Infinito" 
-            qtd_projetos_capacidade_fndit = float('inf')
-        else:
-            qtd_projetos_capacidade_fndit = montante_fndit // subs_por_projeto
-            qtd_projetos_capacidade_fndit_display = f"{int(qtd_projetos_capacidade_fndit):,}".replace(",", ".")
-            
+        qtd_projetos_capacidade_fndit_display = f"{int(qtd_projetos_capacidade_fndit):,}".replace(",", ".") if qtd_projetos_capacidade_fndit != float('inf') else "Infinito"
         st.metric("Projetos Financiáveis (Capacidade FNDIT)", qtd_projetos_capacidade_fndit_display)
-        st.info("Com o subsídio de juros, o FNDIT gasta menos por projeto, podendo financiar mais iniciativas com o mesmo montante.")
-        st.markdown(f"**Detalhes por Projeto (Juros Subsidiados):**")
+        st.info(f"Taxa de Juros: {taxa_juros_subsidio_anual_display}")
+        st.markdown(f"**Detalhes por Projeto:**")
         st.markdown(f"- Parcela Mensal: R$ {parcela_subsidio:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-        st.markdown(f"- Juros Totais Pagos: R$ {juros_total_subsidio:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+        st.markdown(f"- Juros Totais Pagos: R$ {parcela_subsidio * prazo_meses - valor_projeto:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
         st.markdown(f"- **Subsídio FNDIT por Projeto: R$ {subs_por_projeto:,.2f}**".replace(",", "X").replace(".", ",").replace("X", "."))
-        
-        fluxos_tomador_subsidio = [-parcela_subsidio] * prazo_meses
-        fluxos_tomador_subsidio[0] += valor_projeto
-        vpl_tomador_subsidio = calcular_vpl_cached(fluxos_tomador_subsidio, taxa_desconto_tomador_mensal)
         st.markdown(f"- VPL para o Tomador: R$ {vpl_tomador_subsidio:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
 
     # Cenário 3: Subvenção Total do Projeto
     with col3:
         st.subheader("Cenário 3: Subvenção Total")
-        qtd_projetos_subvencao = montante_fndit // valor_projeto if valor_projeto > 0 else 0
         st.metric("Projetos Financiáveis (Capacidade FNDIT)", f"{int(qtd_projetos_subvencao):,}".replace(",", "."))
-        st.info("Neste modelo, o FNDIT cobre 100% do custo do projeto, permitindo que o tomador de crédito não tenha despesa alguma. Isso, no entanto, limita a quantidade de projetos financiáveis.")
-        st.markdown(f"**Detalhes por Projeto (Subvenção Total):**")
+        st.info("Neste modelo, o FNDIT cobre 100% do custo do projeto.")
+        st.markdown(f"**Detalhes por Projeto:**")
         st.markdown(f"- Valor da Subvenção: R$ {valor_projeto:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
         st.markdown(f"*(Não há parcelas ou juros, pois o valor é doado)*")
         st.markdown(f"- VPL para o Tomador: R$ {valor_projeto:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
 
     st.markdown("---")
 
-    # --- Análise Comparativa e Indicadores de Impacto ---
-    st.header("Análise Comparativa e Indicadores de Impacto")
-    col_ind1, col_ind2, col_ind3 = st.columns(3)
-    with col_ind1:
-        st.subheader("Custo de Subsídio por Projeto (FNDIT)")
-        st.info("Este é o valor que o FNDIT gasta por projeto para reduzir os juros para o tomador, calculado como a diferença entre as parcelas a juros 'full' e as parcelas subsidiadas, ao longo do prazo do financiamento.")
-        if subs_por_projeto > 1e-9:
-            st.metric("Subsídio de Juros", f"R$ {subs_por_projeto:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-        else:
-            st.info("Não há subsídio de juros ou é insignificante.")
-    with col_ind2:
-        st.subheader("Eficiência de Alocação")
-        st.info("Compara a quantidade de projetos que o FNDIT pode financiar com sua capacidade de crédito versus a quantidade de projetos que seriam demandados no mercado, considerando a elasticidade. Um valor menor que 100% significa que a demanda não preencheria a capacidade de financiamento.")
-        if taxa_juros_full_anual <= 0:
-            st.warning("Não é possível calcular variação percentual na taxa de juros quando a taxa full é 0%.")
-            qtd_projetos_demandados_elasticidade = 0
-        else:
-            variacao_juros_percentual = (taxa_juros_subsidio_anual - taxa_juros_full_anual) / taxa_juros_full_anual
-            demanda_base_full = qtd_projetos_credito_full
-            aumento_demanda_percentual = elasticidade_demanda * variacao_juros_percentual
-            qtd_projetos_demandados_elasticidade = demanda_base_full * (1 + aumento_demanda_percentual)
-            st.metric("Projetos Demandados (Elasticidade)", f"{int(qtd_projetos_demandados_elasticidade):,}".replace(",", "."))
-            
-        if qtd_projetos_capacidade_fndit != float('inf'):
-            projetos_efetivos = min(qtd_projetos_demandados_elasticidade, qtd_projetos_capacidade_fndit)
-            if qtd_projetos_capacidade_fndit > 0:
-                utilizacao_recursos = projetos_efetivos / qtd_projetos_capacidade_fndit
-                st.metric("Utilização dos Recursos Disponíveis", f"{utilizacao_recursos:.2%}")
-        else:
-            st.metric("Projetos Efetivamente Financiáveis", f"{int(qtd_projetos_demandados_elasticidade):,}".replace(",", "."))
-            st.info("Capacidade de financiamento é ilimitada com o subsídio atual.")
+    # --- Gráfico de Amortização ---
+    st.header("Evolução da Amortização e Juros")
+    st.info("Visualize como a parcela do financiamento é dividida entre juros e amortização ao longo do tempo. O subsídio do FNDIT (Cenário 2) transfere o peso da parcela dos juros para a amortização, acelerando o pagamento do principal.")
+    
+    df_full = gerar_plano_amortizacao(valor_projeto, taxa_juros_full_mensal, prazo_meses)
+    df_subsidio = gerar_plano_amortizacao(valor_projeto, taxa_juros_subsidio_mensal, prazo_meses)
+    
+    fig = go.Figure()
+    
+    # Trace para Juros (Cenário 1)
+    fig.add_trace(go.Scatter(x=df_full['Mês'], y=df_full['Juros'], mode='lines', 
+                             name='Juros (Cenário 1)', line=dict(color='red')))
+    # Trace para Juros (Cenário 2)
+    fig.add_trace(go.Scatter(x=df_subsidio['Mês'], y=df_subsidio['Juros'], mode='lines',
+                             name='Juros (Cenário 2)', line=dict(color='green')))
+    # Trace para Saldo Devedor (Cenário 1)
+    fig.add_trace(go.Scatter(x=df_full['Mês'], y=df_full['Saldo Devedor'], mode='lines',
+                             name='Saldo Devedor (Cenário 1)', line=dict(color='red', dash='dash')))
+    # Trace para Saldo Devedor (Cenário 2)
+    fig.add_trace(go.Scatter(x=df_subsidio['Mês'], y=df_subsidio['Saldo Devedor'], mode='lines',
+                             name='Saldo Devedor (Cenário 2)', line=dict(color='green', dash='dash')))
 
-    with col_ind3:
-        st.subheader("Alavancagem de Capital Privado")
-        st.info("Mede o quanto cada real de capital público (subsídio do FNDIT) atrai de capital privado para o projeto. Uma alavancagem de 2x, por exemplo, significa que para cada R$ 1 público, R$ 2 privados são mobilizados.")
-        if subs_por_projeto > 1e-9:
-            alavancagem_subs = valor_projeto / subs_por_projeto
-            st.metric("Alavancagem (Subsídio de Juros)", f"{alavancagem_subs:,.2f}x".replace(",", "X").replace(".", ",").replace("X", "."))
-        else:
-            st.info("Não aplicável ou calculável.")
-        st.metric("Alavancagem (Subvenção Total)", "Não aplicável (1:1)")
-
-    # --- Gráfico de Comparação de Projetos ---
-    st.header("Comparativo de Quantidade de Projetos")
-    data = {'Cenário': ['Crédito Full', 'Subsídio Juros (Capac. FNDIT)', 'Subsídio Juros (Demanda)', 'Subvenção Total'],
-            'Projetos Financiáveis': [qtd_projetos_credito_full, qtd_projetos_capacidade_fndit, qtd_projetos_demandados_elasticidade, qtd_projetos_subvencao]}
-    df_projetos = pd.DataFrame(data)
-    fig, ax = plt.subplots(figsize=(10, 6))
-    bars = ax.bar(df_projetos['Cenário'], df_projetos['Projetos Financiáveis'], color=['skyblue', 'lightgreen', 'salmon', 'gold'])
-    ax.set_ylabel("Quantidade de Projetos")
-    ax.set_title("Projetos Financiados por Cenário")
-    plt.xticks(rotation=15, ha='right')
-    for bar in bars:
-        yval = bar.get_height()
-        if yval == float('inf'):
-            ax.text(bar.get_x() + bar.get_width()/2, 0, "Inf.", ha='center', va='bottom', fontsize=10, color='red')
-        else:
-            ax.text(bar.get_x() + bar.get_width()/2, yval + 0.5, f'{int(yval):,}'.replace(",", "."), ha='center', va='bottom', fontsize=10)
-    plt.tight_layout()
-    st.pyplot(fig)
-
-    # --- Análise Financeira por Cenário ---
-    st.header("Análise Financeira por Cenário")
-    st.info("Este quadro compara os três cenários de financiamento, mostrando o impacto sobre o tomador (VPL) e o custo para o FNDIT. É uma forma de analisar qual estratégia é mais vantajosa para cada tipo de projeto.")
-    comparison_data = {'Cenário': ['Crédito Full', 'Subsídio Juros', 'Subvenção Total'],
-                        'Custo Total por Projeto': [custo_total_full, custo_total_subsidio, valor_projeto],
-                        'VPL para Tomador': [vpl_tomador_full, vpl_tomador_subsidio, valor_projeto],
-                        'Custo FNDIT por Projeto': [0, subs_por_projeto, valor_projeto]}
-    df_comparison = pd.DataFrame(comparison_data)
-    df_display = df_comparison.copy()
-    for col in ['Custo Total por Projeto', 'VPL para Tomador', 'Custo FNDIT por Projeto']:
-        df_display[col] = df_display[col].apply(lambda x: f"R$ {x:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".") if not pd.isna(x) else "R$ 0,00")
-    st.dataframe(df_display)
+    fig.update_layout(title="Comparativo de Amortização",
+                      xaxis_title="Mês",
+                      yaxis_title="Valor (R$)",
+                      legend_title="Legenda")
+    
+    st.plotly_chart(fig, use_container_width=True)
 
     # --- Seção de Descarbonização ---
     st.markdown("---")
@@ -369,7 +414,6 @@ if st.session_state.run_simulation:
         st.subheader("🎯 Impacto Agregado da Política")
         st.info("Esta seção mostra o impacto total da política de fomento à descarbonização, considerando a capacidade financeira do FNDIT e a demanda estimada de projetos. Ela traduz os resultados financeiros e de carbono em métricas mais amplas e de fácil compreensão.")
         if qtd_projetos_capacidade_fndit != float('inf'):
-            projetos_efetivos = min(qtd_projetos_demandados_elasticidade, qtd_projetos_capacidade_fndit)
             reducao_total_politica = co2_evitado_anual * projetos_efetivos
             col_impacto1, col_impacto2, col_impacto3 = st.columns(3)
             with col_impacto1:
