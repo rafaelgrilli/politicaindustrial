@@ -106,7 +106,7 @@ st.sidebar.info("A taxa de juros reduzida que o FNDIT oferece aos projetos. A di
 elasticidade_demanda = st.sidebar.slider("6. Elasticidade da Demanda por Crédito de Descarbonização", 
                                          min_value=-5.0, max_value=-0.1,
                                          value=-1.5, step=0.1, key="elasticidade_demanda")
-st.sidebar.info("Mede a sensibilidade da demanda por crédito em relação às mudanças na taxa de juros. Uma elasticidade de -1.5, por exemplo, indica que uma redução de 1% na taxa de juros resulta em um aumento de 1.5% na demanda por projetos.")
+st.sidebar.info("Mede a sensibilidade da demanda por crédito em relação às mudanças na taxa de juros. Uma elasticidade de -1.5, por exemplo, indica que uma redução de 1% na taxa de juros aumenta a demanda em aproximadamente 1.5%.")
 
 taxa_desconto_tomador_anual = st.sidebar.slider("7. Taxa de Desconto para VPL (Tomador) a.a. (%)",
                                                 min_value=0.0, max_value=25.0,
@@ -155,13 +155,6 @@ elif abordagem_co2 == "Meta Customizada":
         help="Range baseado em estudos setoriais brasileiros (2023-2024)."
     )
     metodologia_info = "**Atenção:** Fator customizado - recomenda-se validação técnica com especialista setorial."
-
-regiao = st.sidebar.selectbox(
-    "3. Região do Projeto",
-    ["Nacional", "Norte", "Nordeste", "Centro-Oeste", "Sudeste", "Sul"],
-    key="regiao_selector",
-    help="Fatores podem variar conforme o potencial regional de cada tipo de projeto."
-)
 
 # Lógica de controle do botão "Simular"
 if 'run_simulation' not in st.session_state:
@@ -315,10 +308,9 @@ if st.session_state.run_simulation:
 
     # --- Seção de Descarbonização ---
     st.markdown("---")
-    fatores_regionais = {"Nacional": 1.0, "Norte": 1.1, "Nordeste": 1.2, "Centro-Oeste": 0.9, "Sudeste": 1.0, "Sul": 0.95}
-
+    
     if abordagem_co2 != "Nenhuma" and fator_co2 > 0:
-        co2_evitado_anual = (valor_projeto / 1_000_000) * fator_co2 * fatores_regionais[regiao]
+        co2_evitado_anual = (valor_projeto / 1_000_000) * fator_co2
         reducao_total_periodo = co2_evitado_anual * prazo_anos
 
         st.header("🔥 Impacto de Descarbonização Estimado")
@@ -346,7 +338,7 @@ if st.session_state.run_simulation:
         referencias_mercado = {"Mercado Voluntário (Mín.)": 50, "Mercado Voluntário (Máx.)": 180, "Regulado (Mín.)": 80, "Regulado (Máx.)": 250, "CBIOs (RenovaBio)": 85}
         df_comparacao_lista = [{"Categoria": k, "Custo (R$/tCO2e)": v, "Tipo": "Mercado"} for k, v in referencias_mercado.items()]
         
-        if abordagem_co2 == "Tecnologia de Descarbonização Industrial" and tecnologia_name:
+        if abordagem_co2 == "Tecnologia de Descarbonização Industrial" and 'tecnologia_name' in locals():
             df_comparacao_lista.append({"Categoria": "Custo Real da Tecnologia", "Custo (R$/tCO2e)": custo_real_tecnologia, "Tipo": "Tecnologia"})
         
         df_comparacao_lista.append({"Categoria": "Custo do Seu Projeto (FNDIT)", "Custo (R$/tCO2e)": custo_por_tonelada_projeto, "Tipo": "Projeto"})
