@@ -340,23 +340,25 @@ if st.session_state.run_simulation:
     
     df_full = gerar_plano_amortizacao(valor_projeto, taxa_juros_full_mensal, prazo_meses)
     df_subsidio = gerar_plano_amortizacao(valor_projeto, taxa_juros_subsidio_mensal, prazo_meses)
-    
-    fig = go.Figure()
-    
-    # Saldo Devedor (Eixo Y1)
-    fig.add_trace(go.Scatter(x=df_full['Mês'], y=df_full['Saldo Devedor'], mode='lines', 
-                             name='Saldo Devedor (Crédito Full)', line=dict(color='#EF553B', dash='dash')))
-    fig.add_trace(go.Scatter(x=df_subsidio['Mês'], y=df_subsidio['Saldo Devedor'], mode='lines',
-                             name='Saldo Devedor (Subsídio Juros)', line=dict(color='#636EFA', dash='dash')))
 
-    fig.update_layout(
-        title="Comparativo de Saldo Devedor por Cenário",
-        yaxis_title="Saldo Devedor (R$)",
-        xaxis_title="Mês",
-        legend_title="Cenários"
-    )
-    
-    st.plotly_chart(fig, use_container_width=True)
+    if not df_full.empty and not df_subsidio.empty:
+        fig = go.Figure()
+        
+        fig.add_trace(go.Scatter(x=df_full['Mês'], y=df_full['Saldo Devedor'], mode='lines', 
+                                 name='Saldo Devedor (Crédito Full)', line=dict(color='#EF553B', dash='dash')))
+        fig.add_trace(go.Scatter(x=df_subsidio['Mês'], y=df_subsidio['Saldo Devedor'], mode='lines',
+                                 name='Saldo Devedor (Subsídio Juros)', line=dict(color='#636EFA', dash='dash')))
+
+        fig.update_layout(
+            title="Comparativo de Saldo Devedor por Cenário",
+            yaxis_title="Saldo Devedor (R$)",
+            xaxis_title="Mês",
+            legend_title="Cenários"
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.warning("Não é possível gerar o gráfico de amortização com os parâmetros atuais.")
+
 
     # --- Seção de Impacto Tecnológico ---
     st.markdown("---")
@@ -367,38 +369,44 @@ if st.session_state.run_simulation:
         retorno_total_periodo = beneficio_anual_direto * prazo_anos
 
         st.header("🚀 Impacto da Difusão Tecnológica Estimado")
+        st.info(f"""
+        Esta seção detalha os ganhos econômicos projetados para a indústria com o investimento em tecnologia.
+        O **Benefício Econômico Anual** é a soma do aumento de produtividade e da redução de custos operacionais.
+        O **Retorno Total no Período** mostra o valor total gerado pelo projeto ao longo dos {prazo_anos} anos.
+        """)
         st.markdown("---")
         
         col1_impacto, col2_impacto = st.columns(2)
         with col1_impacto:
             st.metric("Benefício Econômico Anual", f"R$ {beneficio_anual_direto:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-            st.markdown(f"*(Ganho de produtividade + Redução de custos operacionais)*")
         with col2_impacto:
             st.metric("Retorno Total no Período", f"R$ {retorno_total_periodo:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-            st.markdown(f"*(Benefício anual total projetado ao longo de {prazo_anos} anos)*")
         
         st.subheader("📊 Eficiência do Fomento")
-        st.info("Este gráfico compara o custo do projeto para a indústria com o benefício econômico total esperado. Ele ajuda a justificar o investimento do FNDIT para viabilizar projetos de tecnologia.")
+        st.info(f"""
+        Este gráfico compara o **Custo do Subsídio do FNDIT** com o **Ganho da Indústria** (retorno econômico total).
+        Ele demonstra de forma visual e intuitiva se o investimento público está gerando um retorno significativo para o setor privado, justificando a intervenção do FNDIT.
+        """)
 
         df_eficiencia_lista = [
-            {"Categoria": "Custo do Projeto (sem Subsídio)", "Valor (R$)": valor_projeto, "Tipo": "Custo"},
             {"Categoria": "Subsídio do FNDIT", "Valor (R$)": subs_por_projeto, "Tipo": "Subsídio"},
             {"Categoria": "Ganho da Indústria", "Valor (R$)": retorno_total_periodo, "Tipo": "Benefício"}
         ]
         
         df_eficiencia = pd.DataFrame(df_eficiencia_lista)
         
-        fig = px.bar(df_eficiencia, x="Categoria", y="Valor (R$)", color="Tipo", title="Comparativo de Custos e Benefícios",
-                     color_discrete_map={"Custo": "#EF553B", "Subsídio": "lightblue", "Benefício": "darkgreen"})
+        fig = px.bar(df_eficiencia, x="Categoria", y="Valor (R$)", color="Tipo", title="Comparativo de Custo vs. Ganho da Indústria",
+                     color_discrete_map={"Custo": "#EF553B", "Subsídio": "lightblue", "Benefício": "darkgreen"},
+                     text_auto='$.2s')
         st.plotly_chart(fig, use_container_width=True)
         
         if retorno_total_periodo > subs_por_projeto:
-            st.success(f"✅ **O subsídio é vantajoso**: O retorno total do projeto (R$ {retorno_total_periodo:,.2f}) é maior que o custo do subsídio do FNDIT (R$ {subs_por_projeto:,.2f}).".replace(",", "X").replace(".", ",").replace("X", "."))
+            st.success(f"✅ **O subsídio é vantajoso**: O ganho total do projeto (R$ {retorno_total_periodo:,.2f}) é maior que o custo do subsídio do FNDIT (R$ {subs_por_projeto:,.2f}).".replace(",", "X").replace(".", ",").replace("X", "."))
         else:
-            st.warning(f"⚠️ **Revise o projeto**: O retorno total do projeto (R$ {retorno_total_periodo:,.2f}) é menor que o custo do subsídio do FNDIT (R$ {subs_por_projeto:,.2f}).".replace(",", "X").replace(".", ",").replace("X", "."))
+            st.warning(f"⚠️ **Revise o projeto**: O ganho total do projeto (R$ {retorno_total_periodo:,.2f}) é menor que o custo do subsídio do FNDIT (R$ {subs_por_projeto:,.2f}).".replace(",", "X").replace(".", ",").replace("X", "."))
         
         st.subheader("🎯 Impacto Agregado da Política")
-        st.info("Esta seção mostra o impacto total da política de fomento à difusão tecnológica, considerando a capacidade financeira do FNDIT e a demanda estimada de projetos. Ela traduz os resultados financeiros em métricas mais amplas e de fácil compreensão.")
+        st.info("Esta seção mostra o impacto total da política de fomento, considerando a capacidade financeira do FNDIT e a demanda estimada de projetos.")
         if qtd_projetos_capacidade_fndit != float('inf'):
             reducao_total_politica = beneficio_anual_direto * projetos_efetivos
             col_impacto1, col_impacto2 = st.columns(2)
