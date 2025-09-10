@@ -176,7 +176,9 @@ if abordagem_tecnologica == "Tipologia Tecnológica (Recomendado)":
         "Robótica e Automação": {"ganho_produtividade_fator": 250_000, "reducao_custo_fator": 80_000, "premissas": "Automatização de tarefas repetitivas, aumento da precisão e velocidade. Baseado em adoção de robôs colaborativos.", "fontes": "McKinsey, IFR (2023)"},
         "Software de Manufatura (MES/ERP)": {"ganho_produtividade_fator": 180_000, "reducao_custo_fator": 60_000, "premissas": "Otimização de planejamento, controle de produção e gestão de estoque em tempo real.", "fontes": "Gartner, BNDES (2024)"},
         "Tecnologias de IoT Industrial": {"ganho_produtividade_fator": 220_000, "reducao_custo_fator": 70_000, "premissas": "Monitoramento preditivo de equipamentos, otimização da cadeia de suprimentos e manutenção preventiva.", "fontes": "IEA, EPE, MME (2023)"},
-        "Manufatura Aditiva (Impressão 3D)": {"ganho_produtividade_fator": 150_000, "reducao_custo_fator": 50_000, "premissas": "Produção de protótipos e peças sob demanda, reduzindo tempo e custo de fabricação. Uso em nichos específicos.", "fontes": "BNDES, Senai Cimatec (2023)"}
+        "Manufatura Aditiva (Impressão 3D)": {"ganho_produtividade_fator": 150_000, "reducao_custo_fator": 50_000, "premissas": "Produção de protótipos e peças sob demanda, reduzindo tempo e custo de fabricação. Uso em nichos específicos.", "fontes": "BNDES, Senai Cimatec (2023)"},
+        "Sistemas de Visão Computacional": {"ganho_produtividade_fator": 200_000, "reducao_custo_fator": 65_000, "premissas": "Inspeção de qualidade automatizada, detecção de defeitos e controle de processos em tempo real.", "fontes": "McKinsey, estudos de mercado (2024)"},
+        "Modernização de Máquinas (Retrofitting)": {"ganho_produtividade_fator": 170_000, "reducao_custo_fator": 90_000, "premissas": "Atualização de equipamentos antigos com novas tecnologias de controle e sensoriamento.", "fontes": "ABIMAQ, estudos de caso (2023)"}
     }
     tecnologia_name = st.sidebar.selectbox("2. Tipo de Tecnologia Industrial", list(fatores_tecnologia.keys()), key="tecnologia_selector")
     
@@ -341,13 +343,13 @@ if st.session_state.run_simulation:
     
     fig = go.Figure()
     
-    # Saldo Devedor (Eixo Y1)
+    # Adicionando o Saldo Devedor no eixo y1
     fig.add_trace(go.Scatter(x=df_full['Mês'], y=df_full['Saldo Devedor'], mode='lines', 
                              name='Saldo Devedor (Crédito Full)', line=dict(color='#EF553B', dash='dash'), yaxis='y1'))
     fig.add_trace(go.Scatter(x=df_subsidio['Mês'], y=df_subsidio['Saldo Devedor'], mode='lines',
                              name='Saldo Devedor (Subsídio Juros)', line=dict(color='#636EFA', dash='dash'), yaxis='y1'))
     
-    # Juros Pagos (Eixo Y2)
+    # Adicionando os Juros Pagos no eixo y2
     fig.add_trace(go.Scatter(x=df_full['Mês'], y=df_full['Juros'], mode='lines', 
                              name='Juros Pagos (Crédito Full)', line=dict(color='#EF553B', width=2), yaxis='y2'))
     fig.add_trace(go.Scatter(x=df_subsidio['Mês'], y=df_subsidio['Juros'], mode='lines',
@@ -375,7 +377,7 @@ if st.session_state.run_simulation:
     # --- Seção de Impacto Tecnológico ---
     st.markdown("---")
     
-    if abordagem_tecnologica != "Nenhuma":
+    if abordagem_tecnologica != "Nenhuma" and (ganho_produtividade_anual > 0 or reducao_custo_anual > 0):
         
         beneficio_anual_direto = ganho_produtividade_anual + reducao_custo_anual
         retorno_total_periodo = beneficio_anual_direto * prazo_anos
