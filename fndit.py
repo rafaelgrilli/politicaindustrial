@@ -260,10 +260,12 @@ if st.session_state.run_simulation:
         projetos_efetivos = min(qtd_projetos_demandados_elasticidade, qtd_projetos_capacidade_fndit)
     else:
         projetos_efetivos = qtd_projetos_demandados_elasticidade
+    
+    capital_privado_alavancado = projetos_efetivos * valor_projeto
 
     # --- Dashboard Executivo ---
     st.header("Sumário Executivo da Simulação")
-    col_vpl, col_alavancagem, col_projetos = st.columns(3)
+    col_vpl, col_alavancagem, col_projetos, col_capital = st.columns(4)
 
     with col_vpl:
         st.subheader("Benefício para a Indústria")
@@ -274,15 +276,20 @@ if st.session_state.run_simulation:
         st.subheader("Alavancagem de Capital")
         if subs_por_projeto > 1e-9:
             alavancagem_subs = valor_projeto / subs_por_projeto
-            st.metric("Alavancagem", f"{alavancagem_subs:,.2f}x".replace(",", "X").replace(".", ",").replace("X", "."))
+            st.metric("Alavancagem por Projeto", f"{alavancagem_subs:,.2f}x".replace(",", "X").replace(".", ",").replace("X", "."))
         else:
-            st.metric("Alavancagem", "Não aplicável")
+            st.metric("Alavancagem por Projeto", "Não aplicável")
         st.info("Mede o capital privado mobilizado por cada real público do FNDIT. Quanto maior, mais eficiente é a política de fomento.")
 
     with col_projetos:
         st.subheader("Alcance da Política")
         st.metric("Projetos Efetivamente Financiados", f"{int(projetos_efetivos):,}".replace(",", "."))
         st.info(f"Este número é o mínimo entre a capacidade do FNDIT ({int(qtd_projetos_capacidade_fndit):,}) e a demanda do mercado ({int(qtd_projetos_demandados_elasticidade):,}).".replace(",", ".").replace("X", "."))
+    
+    with col_capital:
+        st.subheader("Impacto Total do FNDIT")
+        st.metric("Capital Privado Alavancado", f"R$ {capital_privado_alavancado:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+        st.info("Valor total de investimento privado mobilizado pela política de subsídio do FNDIT.")
 
     st.markdown("---")
 
