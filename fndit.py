@@ -359,13 +359,13 @@ if st.session_state.run_simulation:
         title="Comparativo de Amortização e Juros por Cenário",
         yaxis=dict(
             title="Saldo Devedor (R$)",
-            titlefont=dict(color='#EF553B'),
-            tickfont=dict(color='#EF553B')
+            titlefont_color='#EF553B',
+            tickfont_color='#EF553B'
         ),
         yaxis2=dict(
             title="Juros Pagos (R$)",
-            titlefont=dict(color='#636EFA'),
-            tickfont=dict(color='#636EFA'),
+            titlefont_color='#636EFA',
+            tickfont_color='#636EFA',
             overlaying='y',
             side='right'
         ),
