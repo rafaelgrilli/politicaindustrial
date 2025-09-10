@@ -336,40 +336,24 @@ if st.session_state.run_simulation:
 
     # --- Gráfico de Amortização ---
     st.header("Evolução Financeira do Financiamento")
-    st.info("Este gráfico de eixo duplo mostra a evolução do Saldo Devedor e dos Juros ao longo do tempo para os cenários de Crédito Full e Subsídio de Juros, destacando o impacto direto do subsídio.")
+    st.info("Este gráfico de linha compara o Saldo Devedor ao longo do tempo para os cenários de Crédito Full e Subsídio de Juros. O subsídio do FNDIT acelera a amortização, reduzindo o tempo para quitar o saldo devedor.")
     
     df_full = gerar_plano_amortizacao(valor_projeto, taxa_juros_full_mensal, prazo_meses)
     df_subsidio = gerar_plano_amortizacao(valor_projeto, taxa_juros_subsidio_mensal, prazo_meses)
     
     fig = go.Figure()
     
-    # Adicionando o Saldo Devedor no eixo y1
+    # Saldo Devedor (Eixo Y1)
     fig.add_trace(go.Scatter(x=df_full['Mês'], y=df_full['Saldo Devedor'], mode='lines', 
-                             name='Saldo Devedor (Crédito Full)', line=dict(color='#EF553B', dash='dash'), yaxis='y1'))
+                             name='Saldo Devedor (Crédito Full)', line=dict(color='#EF553B', dash='dash')))
     fig.add_trace(go.Scatter(x=df_subsidio['Mês'], y=df_subsidio['Saldo Devedor'], mode='lines',
-                             name='Saldo Devedor (Subsídio Juros)', line=dict(color='#636EFA', dash='dash'), yaxis='y1'))
-    
-    # Adicionando os Juros Pagos no eixo y2
-    fig.add_trace(go.Scatter(x=df_full['Mês'], y=df_full['Juros'], mode='lines', 
-                             name='Juros Pagos (Crédito Full)', line=dict(color='#EF553B', width=2), yaxis='y2'))
-    fig.add_trace(go.Scatter(x=df_subsidio['Mês'], y=df_subsidio['Juros'], mode='lines',
-                             name='Juros Pagos (Subsídio Juros)', line=dict(color='#636EFA', width=2), yaxis='y2'))
+                             name='Saldo Devedor (Subsídio Juros)', line=dict(color='#636EFA', dash='dash')))
 
     fig.update_layout(
-        title="Comparativo de Amortização e Juros por Cenário",
-        yaxis=dict(
-            title="Saldo Devedor (R$)",
-            titlefont_color='#EF553B',
-            tickfont_color='#EF553B'
-        ),
-        yaxis2=dict(
-            title="Juros Pagos (R$)",
-            titlefont_color='#636EFA',
-            tickfont_color='#636EFA',
-            overlaying='y',
-            side='right'
-        ),
-        xaxis_title="Mês"
+        title="Comparativo de Saldo Devedor por Cenário",
+        yaxis_title="Saldo Devedor (R$)",
+        xaxis_title="Mês",
+        legend_title="Cenários"
     )
     
     st.plotly_chart(fig, use_container_width=True)
