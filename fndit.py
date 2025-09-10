@@ -263,7 +263,7 @@ if st.session_state.run_simulation:
 
     # --- Dashboard Executivo ---
     st.header("Sumário Executivo da Simulação")
-    col_vpl, col_alavancagem, col_custo, col_projetos = st.columns(4)
+    col_vpl, col_alavancagem, col_projetos = st.columns(3)
 
     with col_vpl:
         st.subheader("Benefício para a Indústria")
@@ -277,17 +277,7 @@ if st.session_state.run_simulation:
             st.metric("Alavancagem", f"{alavancagem_subs:,.2f}x".replace(",", "X").replace(".", ",").replace("X", "."))
         else:
             st.metric("Alavancagem", "Não aplicável")
-        st.info("Mede o capital privado mobilizado por cada real público do FNDIT.")
-    
-    with col_custo:
-        st.subheader("Retorno do Subsídio")
-        if subs_por_projeto > 0 and (ganho_produtividade_anual + reducao_custo_anual) > 0:
-            beneficio_total_periodo = (ganho_produtividade_anual + reducao_custo_anual) * prazo_anos
-            eficiencia_fomento = subs_por_projeto / beneficio_total_periodo
-            st.metric("Custo FNDIT/Benefício", f"R$ {eficiencia_fomento:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
-        else:
-            st.metric("Custo FNDIT/Benefício", "N/A")
-        st.info("Relação entre o custo do subsídio e o benefício econômico total gerado pelo projeto.")
+        st.info("Mede o capital privado mobilizado por cada real público do FNDIT. Quanto maior, mais eficiente é a política de fomento.")
 
     with col_projetos:
         st.subheader("Alcance da Política")
@@ -325,6 +315,7 @@ if st.session_state.run_simulation:
     # Cenário 3: Subvenção Total do Projeto
     with col3:
         st.subheader("Cenário 3: Subvenção Total")
+        qtd_projetos_subvencao = montante_fndit // valor_projeto if valor_projeto > 0 else 0
         st.metric("Projetos Financiáveis (Capacidade FNDIT)", f"{int(qtd_projetos_subvencao):,}".replace(",", "."))
         st.info("Neste modelo, o FNDIT cobre 100% do custo do projeto.")
         st.markdown(f"**Detalhes por Projeto:**")
@@ -379,8 +370,10 @@ if st.session_state.run_simulation:
         col1_impacto, col2_impacto = st.columns(2)
         with col1_impacto:
             st.metric("Benefício Econômico Anual", f"R$ {beneficio_anual_direto:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+            st.info("Este valor representa o ganho total em produtividade e a redução de custos esperados por ano para o projeto.")
         with col2_impacto:
             st.metric("Retorno Total no Período", f"R$ {retorno_total_periodo:,.2f}".replace(",", "X").replace(".", ",").replace("X", "."))
+            st.info(f"O valor total gerado pelo projeto ao longo de {prazo_anos} anos, considerando os ganhos anuais.")
         
         st.subheader("📊 Eficiência do Fomento")
         st.info(f"""
@@ -396,8 +389,8 @@ if st.session_state.run_simulation:
         df_eficiencia = pd.DataFrame(df_eficiencia_lista)
         
         fig = px.bar(df_eficiencia, x="Categoria", y="Valor (R$)", color="Tipo", title="Comparativo de Custo vs. Ganho da Indústria",
-                     color_discrete_map={"Custo": "#EF553B", "Subsídio": "lightblue", "Benefício": "darkgreen"},
-                     text_auto='$.2s')
+                     color_discrete_map={"Subsídio": "lightblue", "Benefício": "darkgreen"},
+                     text_auto=True)
         st.plotly_chart(fig, use_container_width=True)
         
         if retorno_total_periodo > subs_por_projeto:
@@ -406,7 +399,7 @@ if st.session_state.run_simulation:
             st.warning(f"⚠️ **Revise o projeto**: O ganho total do projeto (R$ {retorno_total_periodo:,.2f}) é menor que o custo do subsídio do FNDIT (R$ {subs_por_projeto:,.2f}).".replace(",", "X").replace(".", ",").replace("X", "."))
         
         st.subheader("🎯 Impacto Agregado da Política")
-        st.info("Esta seção mostra o impacto total da política de fomento, considerando a capacidade financeira do FNDIT e a demanda estimada de projetos.")
+        st.info("Esta seção mostra o impacto total da política de fomento à difusão tecnológica, considerando a capacidade financeira do FNDIT e a demanda estimada de projetos. Ela traduz os resultados financeiros em métricas mais amplas e de fácil compreensão.")
         if qtd_projetos_capacidade_fndit != float('inf'):
             reducao_total_politica = beneficio_anual_direto * projetos_efetivos
             col_impacto1, col_impacto2 = st.columns(2)
